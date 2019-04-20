@@ -1,0 +1,16 @@
+The GPUCC project is a dynamic link library that acts as a front-end for various
+GPU program => bytecode compilers such as the LLVM/Clang-based dxcompiler, the 
+pre-SM6.0 D3DCompiler, the glslangValidator => SPIR-V compiler, the NVRTCC CUDA
+compiler, and so on.
+
+There are various output bytecode formats, such as DXIL (for Direct3D), SPIR-V 
+(for Vulkan and possibly OpenGL and OpenCL), and PTX (CUDA). The user selects 
+a target bytecode format and feature level, which is then used to select the 
+compiler.
+
+There are two primary use cases - one, GPUCC is used as part of a content build
+pipeline to perform offline compilation of GPU programs. The second use case 
+loads the library into the process address space at runtime using the provided 
+loader shim and performs runtime shader compilation for artist/engineer 
+iteration.
+
