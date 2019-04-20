@@ -35,7 +35,6 @@ IF [%VULKAN_SDK%] EQU [] (
 
 :: Specify the location of the Vulkan SDK headers.
 SET VULKAN_INCLUDES=%VULKAN_SDK%\Include
-SET VULKAN_LIBRARIES=%VULKAN_SDK%\Lib
 
 :: Specify the source files for the GPUCC library.
 SET COMMON_SOURCES="%SOURCESDIR%\*.cc"
@@ -72,8 +71,11 @@ ECHO.
 IF NOT EXIST "%OUTPUTDIR%" MKDIR "%OUTPUTDIR%"
 IF NOT EXIST "%LIBOUTPUTDIR%" MKDIR "%LIBOUTPUTDIR%"
 IF NOT EXIST "%EXEOUTPUTDIR%" MKDIR "%EXEOUTPUTDIR%"
-:: REM IF NOT EXIST "%EXEOUTPUTDIR%\vulkan-1.dll" XCOPY "%VULKAN_SDK%\Source\lib\vulkan-1.dll" "%EXEOUTPUTDIR%" /Y /Q > nul 2>&1
-:: REM IF NOT EXIST "%EXEOUTPUTDIR%\vulkan-1.pdb" XCOPY "%VULKAN_SDK%\Source\lib\vulkan-1.pdb" "%EXEOUTPUTDIR%" /Y /Q > nul 2>&1
+IF NOT EXIST "%LIBOUTPUTDIR%\nvrtc64_101_0.dll" XCOPY "%THIRDPARTYDIR%\nvrtc\win64\nvrtc64_101_0.dll" "%LIBOUTPUTDIR%" /Y /Q > nul 2>&1
+IF NOT EXIST "%LIBOUTPUTDIR%\nvrtc-builtins64_101.dll" XCOPY "%THIRDPARTYDIR%\nvrtc\win64\nvrtc-builtins64_101.dll" "%LIBOUTPUTDIR%" /Y /Q > nul 2>&1
+IF NOT EXIST "%LIBOUTPUTDIR%\dxcompiler.dll" XCOPY "%THIRDPARTYDIR%\dxc\win64\dxcompiler.dll" "%LIBOUTPUTDIR%" /Y /Q > nul 2>&1
+IF NOT EXIST "%LIBOUTPUTDIR%\dxil.dll" XCOPY "%THIRDPARTYDIR%\dxc\win64\dxil.dll" "%LIBOUTPUTDIR%" /Y /Q > nul 2>&1
+IF NOT EXIST "%LIBOUTPUTDIR%\d3dcompiler_47.dll" XCOPY "%THIRDPARTYDIR%\fxc\win64\d3dcompiler_47.dll" "%LIBOUTPUTDIR%" /Y /Q > nul 2>&1
 
 :: Initialize the build result state.
 SET BUILD_FAILED=
@@ -81,7 +83,7 @@ SET BUILD_FAILED=
 :: Build the primary artifact, a dynamic library named gpucc.dll.
 PUSHD "%LIBOUTPUTDIR%"
 ECHO Building "%LIBOUTPUTDIR%\gpucc.dll"...
-cl.exe %CPPFLAGS% %COMMON_SOURCES% %PLATFORM_SOURCES% %DEFINES% %LNKFLAGS% /link /dll /out:gpucc.dll /LIBPATH:"%VULKAN_LIBRARIES%"
+cl.exe %CPPFLAGS% %COMMON_SOURCES% %PLATFORM_SOURCES% %DEFINES% %LNKFLAGS% /link /dll /out:gpucc.dll /LIBPATH:"%THIRDPARTYDIR%\shaderc\win64"
 IF %ERRORLEVEL% NEQ 0 (
     ECHO ERROR: Build failed for gpucc.dll.
     SET BUILD_FAILED=1

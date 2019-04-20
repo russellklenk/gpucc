@@ -2,6 +2,7 @@
 
 :: Specify project directories.
 SET ROOTDIR=%~dp0
+SET THIRDPARTYDIR=%~dp03rdparty
 SET INCLUDESDIR=%~dp0include
 SET RESOURCEDIR=%~dp0res
 SET SOURCESDIR=%~dp0src
