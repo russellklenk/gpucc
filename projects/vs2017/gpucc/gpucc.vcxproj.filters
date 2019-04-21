@@ -19,6 +19,9 @@
     <Filter Include="Header Files\win32">
       <UniqueIdentifier>{d1e0ca79-f7c9-4cd2-980e-9865debd597e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\shaderc">
+      <UniqueIdentifier>{462d1157-ab4d-4a56-8e78-e6af2a00bed9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\win32\d3dcompilerapi_win32.h">
@@ -27,6 +30,27 @@
     <ClInclude Include="..\..\..\include\gpucc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\shaderc\env.h">
+      <Filter>Header Files\shaderc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\shaderc\shaderc.h">
+      <Filter>Header Files\shaderc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\shaderc\status.h">
+      <Filter>Header Files\shaderc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\shaderc\visibility.h">
+      <Filter>Header Files\shaderc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\nvrtc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\gpucc_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\win32\gpucc_internal_win32.h">
+      <Filter>Header Files\win32</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\win32\d3dcompilerapi_win32.cc">
@@ -34,6 +58,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\win32\dllmain.cc">
       <Filter>Source Files\win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\win32\gpucc_internal_win32.cc">
+      <Filter>Source Files\win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\gpucc.cc">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

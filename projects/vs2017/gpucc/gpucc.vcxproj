@@ -12,11 +12,20 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\gpucc.h" />
+    <ClInclude Include="..\..\..\include\gpucc_internal.h" />
+    <ClInclude Include="..\..\..\include\nvrtc.h" />
+    <ClInclude Include="..\..\..\include\shaderc\env.h" />
+    <ClInclude Include="..\..\..\include\shaderc\shaderc.h" />
+    <ClInclude Include="..\..\..\include\shaderc\status.h" />
+    <ClInclude Include="..\..\..\include\shaderc\visibility.h" />
     <ClInclude Include="..\..\..\include\win32\d3dcompilerapi_win32.h" />
+    <ClInclude Include="..\..\..\include\win32\gpucc_internal_win32.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\src\gpucc.cc" />
     <ClCompile Include="..\..\..\src\win32\d3dcompilerapi_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\dllmain.cc" />
+    <ClCompile Include="..\..\..\src\win32\gpucc_internal_win32.cc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
