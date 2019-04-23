@@ -1,7 +1,17 @@
 /**
  * @summary gpucc.h: Define common constants and macros used throughout the 
  * library along with any public types and entry points exported by the library.
- * The GpuCC library provides a basic front-end for passing GPU program 
+ * The GpuCC library provides a basic front-end for passing GPU program source 
+ * code to a compiler back-end that compiles to bytecode. This bytecode can 
+ * then be saved to disk for later use or passed to the GPU driver for final 
+ * conversion to the GPU ISA and execution.
+ *
+ * If you define GPUCC_LOADER_IMPLEMENTATION prior to including this header 
+ * in _one source file only_, a loader implementation will be synthesized into
+ * that translation unit. The loader API loads GpuCC at runtime and populates 
+ * a dispatch table. Additionally define GPUCC_LOCAL_RUNTIME_IMPLEMENTATION to 
+ * synthesize the GpuCC public API functions that call through a global 
+ * dispatch table.
  */
 #ifndef __GPUCC_H__
 #define __GPUCC_H__
@@ -77,6 +87,7 @@ typedef enum GPUCC_ERROR_CODE {
     GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME      =  -7,                       /* */
     GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE       =  -8,                       /* */
     GPUCC_RESULT_CODE_INVALID_ARGUMENT            =  -9,                       /* */
+    GPUCC_RESULT_CODE_CANNOT_LOAD                 = -10,                       /* */
 } GPUCC_RESULT_CODE;
 
 /* @summary Define the set of supported GPU program compilers. Not all compilers are supported on all platforms.
@@ -123,6 +134,8 @@ typedef struct GPUCC_PROGRAM_COMPILER_INIT {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifndef GPUCC_NO_PROTOTYPES
 
 /* @summary Retrieve the version of the GpuCC library.
  * @param o_major On return, this location is updated with the major version component.
@@ -252,6 +265,8 @@ gpuccQueryBytecodeType
     struct GPUCC_PROGRAM_COMPILER *compiler
 );
 
+#endif /* GPUCC_NO_PROTOTYPES */
+
 #ifdef __cplusplus
 }; /* extern "C" */
 #endif
@@ -259,5 +274,506 @@ gpuccQueryBytecodeType
 #endif /* __GPUCC_H__ */
 
 #ifdef GPUCC_LOADER_IMPLEMENTATION
+
+/* @summary Define a general signature for a dynamically-loaded function.
+ * Code will have to cast the function pointer to the correct type.
+ */
+typedef int (*PFN_GpuCC_Unknown)(void);
+
+/* @summary Helper macro for populating a dispatch table with functions loaded at runtime.
+ * If the function is not found, the entry point is updated to point to a stub implementation provided by the caller.
+ * This macro relies on specific naming conventions:
+ * - The signature must be PFN_BlahBlahBlah where BlahBlahBlah corresponds to the _fn argument.
+ * - The dispatch table field must be BlahBlahBlah where BlahBlahBlah corresponds to the _fn argument.
+ * - The stub function must be named BlahBlahBlah_Stub where BlahBlahBlah corresponds to the _fn argument.
+ * @param _disp A pointer to the dispatch table to populate.
+ * @param _module The GPUCC_RUNTIME_MODULE representing the module loaded into the process address space.
+ * @param _fn The name of the function to dynamically load.
+ */
+#ifndef gpuccResolveRuntimeFunction
+#define gpuccResolveRuntimeFunction(_disp, _module, _fn)                       \
+    for (;;) {                                                                 \
+        (_disp)->_fn=(PFN_##_fn) gpuccRuntimeModuleResolve((_module), #_fn);   \
+        if ((_disp)->_fn == NULL) {                                            \
+            (_disp)->_fn  = _fn##_Stub;                                        \
+        } break;                                                               \
+    }
+#endif
+
+/**
+ * Implement a small shim layer for each platform that the loader can rely on 
+ * for dynamically loading a DLL or shared object library into the process 
+ * address space and resolving entry points.
+ */
+#if   defined(__APPLE__)
+#   if defined(TARGET_OS_IPHONE) || defined(TARGET_OS_IPHONE_SIMULATOR)
+#       error No GpuCC loader implementation for iOS (yet).
+#   else
+#       error No GpuCC loader implementation for macOS (yet).
+#   endif
+#elif defined(_WIN32) || defined(_WIN64)
+/** BEGIN WINDOWS **/
+#   ifndef GPUCC_LOADER_NO_INCLUDES
+#       include <Windows.h>
+#   endif
+
+#   ifndef GPUCC_LOADER_UNUSED
+#       define GPUCC_LOADER_UNUSED(_x) (void)(_x)
+#   endif
+
+    /* @summary Declare the runtime module type. On Windows, this is the type returned by LoadLibraryW.
+     */
+    typedef HMODULE GPUCC_RUNTIME_MODULE;
+
+    /* @summary Resolve a function entry point declared with C linkage.
+     * This function is used by the gpuccResolveRuntimeFunction macro.
+     * @param module The module handle of the DLL.
+     * @param symbol The unmangled symbol name.
+     * @return A pointer to the function loaded into the process address space, or NULL if the entry point is not found.
+     */
+    static PFN_GpuCC_Unknown
+    gpuccRuntimeModuleResolve
+    (
+        GPUCC_RUNTIME_MODULE module, 
+        char const          *symbol
+    )
+    {
+        if (module != NULL) {
+            return (PFN_GpuCC_Unknown) GetProcAddress(module, symbol);
+        } else {
+            return (PFN_GpuCC_Unknown) NULL;
+        }
+    }
+
+    /* @summary Load the GpuCC DLL into the address space of the calling process.
+     * @return The module handle, or NULL if GpuCC.dll could not be loaded.
+     */
+    static GPUCC_RUNTIME_MODULE
+    gpuccRuntimeModuleLoad
+    (
+        void
+    )
+    {
+        return (GPUCC_RUNTIME_MODULE) LoadLibraryW(L"gpucc.dll");
+    }
+
+    /* @summary Unload the GpuCC DLL from the address space of the calling process.
+     */
+    static void
+    gpuccRuntimeModuleUnload
+    (
+        GPUCC_RUNTIME_MODULE module
+    )
+    {
+        if (module != NULL) {
+            FreeLibrary(module);
+        }
+    }
+
+/*** END WINDOWS ***/
+#elif defined(__linux__) || defined(__gnu_linux__)
+#   error No GpuCC loader implementation for Linux (yet).
+#else
+#   error No GpuCC loader implementation for your platform (yet).
+#endif
+
+/*** FUNCTION POINTER TYPES ***/
+typedef void                           (*PFN_gpuccVersion           )(int32_t*, int32_t*, int32_t*);
+typedef int32_t                        (*PFN_gpuccFailure           )(struct GPUCC_RESULT);
+typedef int32_t                        (*PFN_gpuccSuccess           )(struct GPUCC_RESULT);
+typedef char const*                    (*PFN_gpuccErrorString       )(int32_t);
+typedef char const*                    (*PFN_gpuccBytecodeTypeString)(int32_t);
+typedef char const*                    (*PFN_gpuccCompilerTypeString)(int32_t);
+typedef struct GPUCC_RESULT            (*PFN_gpuccStartup           )(uint32_t gpucc_usage_mode);
+typedef void                           (*PFN_gpuccShutdown          )(void);
+typedef struct GPUCC_RESULT            (*PFN_gpuccGetLastResult     )(void);
+typedef struct GPUCC_PROGRAM_COMPILER* (*PFN_gpuccCreateCompiler    )(struct GPUCC_PROGRAM_COMPILER_INIT*);
+typedef void                           (*PFN_gpuccDeleteCompiler    )(struct GPUCC_PROGRAM_COMPILER*);
+typedef int32_t                        (*PFN_gpuccQueryCompilerType )(struct GPUCC_PROGRAM_COMPILER*);
+typedef int32_t                        (*PFN_gpuccQueryBytecodeType )(struct GPUCC_PROGRAM_COMPILER*);
+
+typedef struct GPUCC_LOADER_DISPATCH {
+    PFN_gpuccVersion            gpuccVersion;
+    PFN_gpuccFailure            gpuccFailure;
+    PFN_gpuccSuccess            gpuccSuccess;
+    PFN_gpuccErrorString        gpuccErrorString;
+    PFN_gpuccBytecodeTypeString gpuccBytecodeTypeString;
+    PFN_gpuccCompilerTypeString gpuccCompilerTypeString;
+    PFN_gpuccStartup            gpuccStartup;
+    PFN_gpuccShutdown           gpuccShutdown;
+    PFN_gpuccGetLastResult      gpuccGetLastResult;
+    PFN_gpuccCreateCompiler     gpuccCreateCompiler;
+    PFN_gpuccDeleteCompiler     gpuccDeleteCompiler;
+    PFN_gpuccQueryCompilerType  gpuccQueryCompilerType;
+    PFN_gpuccQueryBytecodeType  gpuccQueryBytecodeType;
+    GPUCC_RUNTIME_MODULE        ModuleHandle_GpuCC;
+} GPUCC_LOADER_DISPATCH;
+
+/*** STUB IMPLEMENTATIONS ***/
+static void
+gpuccVersion_Stub
+(
+    int32_t *o_major, 
+    int32_t *o_minor, 
+    int32_t *o_patch
+)
+{
+    if (o_major) *o_major = 0;
+    if (o_minor) *o_minor = 0;
+    if (o_patch) *o_patch = 0;
+}
+
+static int32_t
+gpuccFailure_Stub
+(
+    struct GPUCC_RESULT r
+)
+{
+    return (r.LibraryResult < 0);
+}
+
+static int32_t
+gpuccSuccess_Stub
+(
+    struct GPUCC_RESULT r
+)
+{
+    return (r.LibraryResult >= 0);
+}
+
+static char const*
+gpuccErrorString_Stub
+(
+    int32_t gpucc_result_code
+)
+{
+    switch (gpucc_result_code) {
+        case GPUCC_RESULT_CODE_SUCCESS               : return "GPUCC_RESULT_CODE_SUCCESS";
+        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED   : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
+        case GPUCC_RESULT_CODE_NOT_INITIALIZED       : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
+        case GPUCC_RESULT_CODE_PLATFORM_ERROR        : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
+        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE    : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
+        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED: return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
+        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY    : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE: return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME: return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
+        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
+        case GPUCC_RESULT_CODE_INVALID_ARGUMENT      : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
+        case GPUCC_RESULT_CODE_CANNOT_LOAD           : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
+        default                                      : return "GPUCC_RESULT_CODE (unknown)";
+    }
+}
+
+static char const*
+gpuccBytecodeTypeString_Stub
+(
+    int32_t gpucc_bytecode_type
+)
+{
+    switch (gpucc_bytecode_type) {
+        case GPUCC_BYTECODE_TYPE_UNKNOWN: return "GPUCC_BYTECODE_TYPE_UNKNOWN";
+        case GPUCC_BYTECODE_TYPE_DXIL   : return "GPUCC_BYTECODE_TYPE_DXIL";
+        case GPUCC_BYTECODE_TYPE_DXBC   : return "GPUCC_BYTECODE_TYPE_DXBC";
+        case GPUCC_BYTECODE_TYPE_SPIRV  : return "GPUCC_BYTECODE_TYPE_SPIRV";
+        case GPUCC_BYTECODE_TYPE_PTX    : return "GPUCC_BYTECODE_TYPE_PTX";
+        default                         : return "GPUCC_BYTECODE_TYPE (unknown)";
+    }
+}
+
+static char const*
+gpuccCompilerTypeString_Stub
+(
+    int32_t gpucc_compiler_type
+)
+{
+    switch (gpucc_compiler_type) {
+        case GPUCC_COMPILER_TYPE_UNKNOWN: return "GPUCC_COMPILER_TYPE_UNKNOWN";
+        case GPUCC_COMPILER_TYPE_DXC    : return "GPUCC_COMPILER_TYPE_DXC";
+        case GPUCC_COMPILER_TYPE_FXC    : return "GPUCC_COMPILER_TYPE_FXC";
+        case GPUCC_COMPILER_TYPE_SHADERC: return "GPUCC_COMPILER_TYPE_SHADERC";
+        case GPUCC_COMPILER_TYPE_NVRTC  : return "GPUCC_COMPILER_TYPE_NVRTC";
+        default                         : return "GPUCC_COMPILER_TYPE (unknown)";
+    }
+}
+
+static struct GPUCC_RESULT
+gpuccStartup_Stub
+(
+    uint32_t gpucc_usage_mode
+)
+{
+    GPUCC_LOADER_UNUSED(gpucc_usage_mode);
+    return GPUCC_RESULT{ GPUCC_RESULT_CODE_CANNOT_LOAD, 0 };
+}
+
+static void
+gpuccShutdown_Stub
+(
+    void
+)
+{
+    /* empty */
+}
+
+static struct GPUCC_RESULT
+gpuccGetLastResult_Stub
+(
+    void
+)
+{
+    return GPUCC_RESULT{ GPUCC_RESULT_CODE_CANNOT_LOAD, 0 };
+}
+
+static struct GPUCC_PROGRAM_COMPILER*
+gpuccCreateCompiler_Stub
+(
+    struct GPUCC_PROGRAM_COMPILER_INIT *config
+)
+{
+    GPUCC_LOADER_UNUSED(config);
+    return NULL;
+}
+
+static void
+gpuccDeleteCompiler_Stub
+(
+    struct GPUCC_PROGRAM_COMPILER *compiler
+)
+{
+    GPUCC_LOADER_UNUSED(compiler);
+}
+
+static int32_t
+gpuccQueryCompilerType_Stub
+(
+    struct GPUCC_PROGRAM_COMPILER *compiler
+)
+{
+    GPUCC_LOADER_UNUSED(compiler);
+    return GPUCC_COMPILER_TYPE_UNKNOWN;
+}
+
+static int32_t
+gpuccQueryBytecodeType_Stub
+(
+    struct GPUCC_PROGRAM_COMPILER *compiler
+)
+{
+    GPUCC_LOADER_UNUSED(compiler);
+    return GPUCC_BYTECODE_TYPE_UNKNOWN;
+}
+
+/*** LOADER IMPLEMENTATION ***/
+static void
+gpuccLoaderStubDispatch
+(
+    struct GPUCC_LOADER_DISPATCH *dispatch
+)
+{
+    dispatch->gpuccVersion              = gpuccVersion_Stub;
+    dispatch->gpuccFailure              = gpuccFailure_Stub;
+    dispatch->gpuccSuccess              = gpuccSuccess_Stub;
+    dispatch->gpuccErrorString          = gpuccErrorString_Stub;
+    dispatch->gpuccBytecodeTypeString   = gpuccBytecodeTypeString_Stub;
+    dispatch->gpuccCompilerTypeString   = gpuccCompilerTypeString_Stub;
+    dispatch->gpuccStartup              = gpuccStartup_Stub;
+    dispatch->gpuccShutdown             = gpuccShutdown_Stub;
+    dispatch->gpuccGetLastResult        = gpuccGetLastResult_Stub;
+    dispatch->gpuccCreateCompiler       = gpuccCreateCompiler_Stub;
+    dispatch->gpuccDeleteCompiler       = gpuccDeleteCompiler_Stub;
+    dispatch->gpuccQueryCompilerType    = gpuccQueryCompilerType_Stub;
+    dispatch->gpuccQueryBytecodeType    = gpuccQueryBytecodeType_Stub;
+    dispatch->ModuleHandle_GpuCC        = NULL;
+}
+static int32_t
+gpuccLoaderPopulateDispatchFrom
+(
+    struct GPUCC_LOADER_DISPATCH *dispatch, 
+    GPUCC_RUNTIME_MODULE            module
+)
+{
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccVersion);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccFailure);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccSuccess);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccErrorString);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccBytecodeTypeString);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccCompilerTypeString);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccStartup);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccShutdown);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccGetLastResult);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccCreateCompiler);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccDeleteCompiler);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryCompilerType);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeType);
+    dispatch->ModuleHandle_GpuCC        = module;
+    return module != NULL;
+}
+
+static int32_t
+gpuccLoaderPopulateDispatch
+(
+    struct GPUCC_LOADER_DISPATCH *dispatch
+)
+{
+    GPUCC_RUNTIME_MODULE module = gpuccRuntimeModuleLoad();
+    return gpuccLoaderPopulateDispatchFrom(dispatch, module);
+}
+
+static void
+gpuccLoaderInvalidateDispatch
+(
+    struct GPUCC_LOADER_DISPATCH *dispatch
+)
+{
+    GPUCC_RUNTIME_MODULE module = dispatch->ModuleHandle_GpuCC;
+    gpuccLoaderStubDispatch(dispatch);
+    gpuccRuntimeModuleUnload(module);
+}
+
+#ifdef GPUCC_LOCAL_RUNTIME_IMPLEMENTATION
+
+    GPUCC_LOADER_DISPATCH g_gpuccDispatch = {};
+
+    GPUCC_API(struct GPUCC_RESULT)
+    gpuccLocalRuntimeStartup
+    (
+        uint32_t gpucc_usage_mode
+    )
+    {
+        gpuccLoaderPopulateDispatch(&g_gpuccDispatch);
+        return g_gpuccDispatch.gpuccStartup(gpucc_usage_mode);
+    }
+
+    GPUCC_API(void)
+    gpuccLocalRuntimeShutdown
+    (
+        void
+    )
+    {
+        g_gpuccDispatch.gpuccShutdown();
+        gpuccLoaderInvalidateDispatch(&g_gpuccDispatch);
+    }
+
+    GPUCC_API(void)
+    gpuccVersion
+    (
+        int32_t *o_major, 
+        int32_t *o_minor, 
+        int32_t *o_patch
+    )
+    {
+        g_gpuccDispatch.gpuccVersion(o_major, o_minor, o_patch);
+    }
+
+    GPUCC_API(int32_t)
+    gpuccFailure
+    (
+        struct GPUCC_RESULT r
+    )
+    {
+        return g_gpuccDispatch.gpuccFailure(r);
+    }
+
+    GPUCC_API(int32_t)
+    gpuccSuccess
+    (
+        struct GPUCC_RESULT r
+    )
+    {
+        return g_gpuccDispatch.gpuccSuccess(r);
+    }
+
+    GPUCC_API(char const*)
+    gpuccErrorString
+    (
+        int32_t gpucc_result_code
+    )
+    {
+        return g_gpuccDispatch.gpuccErrorString(gpucc_result_code);
+    }
+
+    GPUCC_API(char const*)
+    gpuccBytecodeTypeString
+    (
+        int32_t gpucc_bytecode_type
+    )
+    {
+        return g_gpuccDispatch.gpuccBytecodeTypeString(gpucc_bytecode_type);
+    }
+
+    GPUCC_API(char const*)
+    gpuccCompilerTypeString
+    (
+        int32_t gpucc_compiler_type
+    )
+    {
+        return g_gpuccDispatch.gpuccCompilerTypeString(gpucc_compiler_type);
+    }
+
+    GPUCC_API(struct GPUCC_RESULT)
+    gpuccStartup
+    (
+        uint32_t gpucc_usage_mode
+    )
+    {
+        return g_gpuccDispatch.gpuccStartup(gpucc_usage_mode);
+    }
+
+    GPUCC_API(void)
+    gpuccShutdown
+    (
+        void
+    )
+    {
+        g_gpuccDispatch.gpuccShutdown();
+    }
+
+    GPUCC_API(struct GPUCC_RESULT)
+    gpuccGetLastResult
+    (
+        void
+    )
+    {
+        return g_gpuccDispatch.gpuccGetLastResult();
+    }
+
+    GPUCC_API(struct GPUCC_PROGRAM_COMPILER*)
+    gpuccCreateCompiler
+    (
+        struct GPUCC_PROGRAM_COMPILER_INIT *config
+    )
+    {
+        return g_gpuccDispatch.gpuccCreateCompiler(config);
+    }
+
+    GPUCC_API(void)
+    gpuccDeleteCompiler 
+    (
+        struct GPUCC_PROGRAM_COMPILER *compiler
+    )
+    {
+        g_gpuccDispatch.gpuccDeleteCompiler(compiler);
+    }
+
+    GPUCC_API(int32_t)
+    gpuccQueryCompilerType
+    (
+        struct GPUCC_PROGRAM_COMPILER *compiler
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryCompilerType(compiler);
+    }
+
+    GPUCC_API(int32_t)
+    gpuccQueryBytecodeType
+    (
+        struct GPUCC_PROGRAM_COMPILER *compiler
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeType(compiler);
+    }
+
+#endif /* GPUCC_LOCAL_RUNTIME_IMPLEMENTATION */
+
 #endif /* GPUCC_LOADER_IMPLEMENTATION */
 

@@ -1,0 +1,16 @@
+LIBRARY GpuCC
+EXPORTS
+    gpuccVersion
+    gpuccFailure
+    gpuccSuccess
+    gpuccErrorString
+    gpuccBytecodeTypeString
+    gpuccCompilerTypeString
+    gpuccStartup
+    gpuccShutdown
+    gpuccGetLastResult
+    gpuccCreateCompiler
+    gpuccDeleteCompiler
+    gpuccQueryCompilerType
+    gpuccQueryBytecodeType
+

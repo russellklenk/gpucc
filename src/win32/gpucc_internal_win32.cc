@@ -122,7 +122,7 @@ gpuccStartup
 
     /* Populate dispatch tables for any available compilers. */
     pctx->CompilerSupport = GPUCC_COMPILER_SUPPORT_NONE;
-    if (D3DCompilerApiPopulateDispatch(&pctx->D3DCompiler_Dispatch, d3dcompiler_flags) == 0) {
+    if (D3DCompilerApiPopulateDispatch(&pctx->D3DCompiler_Dispatch, d3dcompiler_flags) != 0) {
         pctx->CompilerSupport |= GPUCC_COMPILER_SUPPORT_FXC;
     }
     /* ... */
@@ -178,6 +178,8 @@ gpuccCreateCompilerFxc
     size_t                     nbneed = 0;
     unsigned int          level_major = 0;
     unsigned int          level_minor = 0;
+    char                          st0 = 0;
+    char                          st1 = 0;
     int                       nbmatch = 0;
     char               shader_type[3] ={0, 0, 0};
 
@@ -188,34 +190,36 @@ gpuccCreateCompilerFxc
         gpuccSetLastResult(r);
         return nullptr;
     }
-    if ((nbmatch = sscanf_s(config->TargetProfile, "%s_%u_%u", shader_type, 2, &level_major, &level_minor)) != 3) {
+    if ((nbmatch = sscanf_s(config->TargetProfile, "%c%c_%u_%u", &st0, 1, &st1, 1, &level_major, &level_minor)) != 4) {
         /* The TargetProfile string doesn't match the expected format. */
         GPUCC_RESULT r = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE);
-        DebugPrintfW(L"GpuCC: Invalid target profile \"%s\" for the FXC compiler.\n", config->TargetProfile);
+        DebugPrintfW(L"GpuCC: Invalid target profile \"%S\" for the FXC compiler.\n", config->TargetProfile);
         gpuccSetLastResult(r);
         return nullptr;
     }
+    shader_type[0] = st0;
+    shader_type[1] = st1;
     if (_stricmp(shader_type, "cs") != 0 && 
         _stricmp(shader_type, "vs") != 0 && 
         _stricmp(shader_type, "ps") != 0 && 
         _stricmp(shader_type, "gs") != 0) {
         /* The target profile specifies an unexpected shader type. */
         GPUCC_RESULT r = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE);
-        DebugPrintfW(L"GpuCC: Invalid target profile \"%s\". Unexpected shader type \'%s\'.\n", config->TargetProfile, shader_type);
+        DebugPrintfW(L"GpuCC: Invalid target profile \"%S\". Unexpected shader type \'%s\'.\n", config->TargetProfile, shader_type);
         gpuccSetLastResult(r);
         return nullptr;
     }
     if (level_major < 4) {
         /* Legacy D3D9 shader models are not supported. */
         GPUCC_RESULT r = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE);
-        DebugPrintfW(L"GpuCC: Invalid target profile \"%s\". Legacy shader models are not supported.\n", config->TargetProfile);
+        DebugPrintfW(L"GpuCC: Invalid target profile \"%S\". Legacy shader models are not supported.\n", config->TargetProfile);
         gpuccSetLastResult(r);
         return nullptr;
     }
     if (level_major > 5) {
         /* Shader Model 6 and later requires using the newer dxc compiler. */
         GPUCC_RESULT r = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE);
-        DebugPrintfW(L"GpuCC: Invalid target profile \"%s\". Shader model 6+ require the newer dxc compiler and DXIL bytecode format.\n", config->TargetProfile);
+        DebugPrintfW(L"GpuCC: Invalid target profile \"%S\". Shader model 6+ require the newer dxc compiler and DXIL bytecode format.\n", config->TargetProfile);
         gpuccSetLastResult(r);
         return nullptr;
     }

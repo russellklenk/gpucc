@@ -83,7 +83,7 @@ SET BUILD_FAILED=
 :: Build the primary artifact, a dynamic library named gpucc.dll.
 PUSHD "%LIBOUTPUTDIR%"
 ECHO Building "%LIBOUTPUTDIR%\gpucc.dll"...
-cl.exe %CPPFLAGS% %COMMON_SOURCES% %PLATFORM_SOURCES% %DEFINES% %LNKFLAGS% /link /dll /out:gpucc.dll /LIBPATH:"%THIRDPARTYDIR%\shaderc\win64"
+cl.exe %CPPFLAGS% %COMMON_SOURCES% %PLATFORM_SOURCES% %DEFINES% %LNKFLAGS% /link /dll /DEF:"%ROOTDIR%\gpucc.def" /out:gpucc.dll /LIBPATH:"%THIRDPARTYDIR%\shaderc\win64"
 IF %ERRORLEVEL% NEQ 0 (
     ECHO ERROR: Build failed for gpucc.dll.
     SET BUILD_FAILED=1
