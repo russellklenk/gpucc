@@ -4,6 +4,8 @@
 #include "gpucc.h"
 #include "gpucc_internal.h"
 
+static char g_EmptyUtf8String[1] = {'\0'};
+
 GPUCC_API(void)
 gpuccVersion
 (
@@ -42,19 +44,21 @@ gpuccErrorString
 )
 {
     switch (gpucc_result_code) {
-        case GPUCC_RESULT_CODE_SUCCESS               : return "GPUCC_RESULT_CODE_SUCCESS";
-        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED   : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
-        case GPUCC_RESULT_CODE_NOT_INITIALIZED       : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
-        case GPUCC_RESULT_CODE_PLATFORM_ERROR        : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
-        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE    : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
-        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED: return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
-        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY    : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
-        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE: return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
-        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME: return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
-        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
-        case GPUCC_RESULT_CODE_INVALID_ARGUMENT      : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
-        case GPUCC_RESULT_CODE_CANNOT_LOAD           : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
-        default                                      : return "GPUCC_RESULT_CODE (unknown)";
+        case GPUCC_RESULT_CODE_SUCCESS                 : return "GPUCC_RESULT_CODE_SUCCESS";
+        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED     : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
+        case GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER: return "GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER";
+        case GPUCC_RESULT_CODE_NOT_INITIALIZED         : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
+        case GPUCC_RESULT_CODE_PLATFORM_ERROR          : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
+        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE      : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
+        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED  : return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
+        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY      : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE  : return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME  : return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
+        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE   : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
+        case GPUCC_RESULT_CODE_INVALID_ARGUMENT        : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
+        case GPUCC_RESULT_CODE_CANNOT_LOAD             : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
+        case GPUCC_RESULT_CODE_COMPILE_FAILED          : return "GPUCC_RESULT_CODE_COMPILE_FAILED";
+        default                                        : return "GPUCC_RESULT_CODE (unknown)";
     }
 }
 
@@ -114,5 +118,47 @@ gpuccQueryBytecodeType
     } else {
         return GPUCC_COMPILER_TYPE_UNKNOWN;
     }
+}
+
+GPUCC_API(struct GPUCC_RESULT)
+gpuccQueryBytecodeCompileResult
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode) {
+        return gpuccQueryBytecodeCompileResult_(bytecode);
+    } else {
+        return GPUCC_RESULT { GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER, 0 };
+    }
+}
+
+GPUCC_API(struct GPUCC_PROGRAM_COMPILER*)
+gpuccQueryBytecodeCompiler
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode) {
+        return gpuccQueryBytecodeCompiler_(bytecode);
+    } else {
+        return nullptr;
+    }
+}
+
+GPUCC_API(char const*)
+gpuccQueryBytecodeEntryPoint
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    char const *entry = nullptr;
+    if (bytecode) {
+        entry = gpuccQueryBytecodeEntryPoint_(bytecode);
+    }
+    if (entry == nullptr) {
+        entry = g_EmptyUtf8String;
+    }
+    return entry;
 }
 
