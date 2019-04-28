@@ -91,6 +91,12 @@ gpuccMakeResult
 );
 
 GPUCC_API(struct GPUCC_RESULT)
+gpuccMakeResult_errno
+(
+    int32_t library_result
+);
+
+GPUCC_API(struct GPUCC_RESULT)
 gpuccMakeResult_Win32
 (
     int32_t library_result, 

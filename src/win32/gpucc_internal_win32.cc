@@ -68,6 +68,7 @@ strputa
  * @param src A pointer to the start of the nul-terminated source string to copy.
  * @return A pointer to the start of the string in the destination buffer.
  */
+#if 0
 static WCHAR*
 strputw
 (
@@ -85,6 +86,7 @@ strputw
    *dst++ = 0; /* nul byte 1 */
     return p;
 }
+#endif
 
 /* @summary Parse a Direct3D shader model target profile of the format "ss_j_i", where ss indicates the shader stage, j indicates the shader model major version, and i indicates the shader model minor version.
  * @param target A nul-terminated string specifying the Direct3D shader model.
@@ -149,6 +151,11 @@ gpuccCreateProgramBytecodeFxc
     code->CommonFields.Compiler        = compiler;
     code->CommonFields.CompileResult   = gpuccMakeResult(GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER);
     code->CommonFields.EntryPoint      = nullptr; /* Set on compile */
+    code->CommonFields.SourcePath      = nullptr; /* Set on compile */
+    code->CommonFields.LogBuffer       = nullptr; /* Set on compile */
+    code->CommonFields.LogBufferSize   = 0;       /* Set on compile */
+    code->CommonFields.BytecodeSize    = 0;       /* Set on compile */
+    code->CommonFields.BytecodeBuffer  = nullptr; /* Set on compile */
     code->CodeBuffer                   = nullptr; /* Set on compile */
     code->ErrorLog                     = nullptr; /* Set on compile */
     return (struct GPUCC_PROGRAM_BYTECODE*) code;
@@ -164,18 +171,85 @@ gpuccDeleteProgramBytecodeFxc
 )
 {
     GPUCC_BYTECODE_FXC_WIN32 *code = gpuccBytecodeFxc_(bytecode);
-    //GPUCC_COMPILER_FXC_WIN32 *comp = gpuccCompilerFxc_(gpuccQueryBytecodeCompiler_(bytecode));
-    if (code->ErrorLog) {
+
+    if (code->ErrorLog != nullptr) {
         ID3DBlob  *log  = code->ErrorLog;
-        code->ErrorLog  = nullptr;
+        code->CommonFields.LogBufferSize  = 0;
+        code->CommonFields.LogBuffer      = nullptr;
+        code->ErrorLog                    = nullptr;
         log->Release();
     }
-    if (code->CodeBuffer) {
-        ID3DBlob  *buf  = code->CodeBuffer;
-        code->CodeBuffer= nullptr;
+    if (code->CodeBuffer != nullptr) {
+        ID3DBlob    *buf  = code->CodeBuffer;
+        code->CommonFields.BytecodeBuffer = nullptr;
+        code->CommonFields.BytecodeSize   = 0;
+        code->CodeBuffer                  = nullptr;
         buf->Release();
     }
+    if (code->CommonFields.EntryPoint != nullptr) {
+        free(code->CommonFields.EntryPoint);
+        code->CommonFields.EntryPoint  = nullptr;
+        code->CommonFields.SourcePath  = nullptr;
+    }
     /* TODO: Decrement ref count on compiler object? */
+}
+
+static struct GPUCC_RESULT
+gpuccCompileBytecodeFxc
+(
+    struct GPUCC_PROGRAM_BYTECODE *container, 
+    char const                  *source_code, 
+    uint64_t                     source_size, 
+    char const                  *source_path, 
+    char const                  *entry_point
+)
+{
+    GPUCC_COMPILER_FXC_WIN32  *compiler_ = gpuccCompilerFxc_(gpuccQueryBytecodeCompiler_(container));
+    GPUCC_BYTECODE_FXC_WIN32 *container_ = gpuccBytecodeFxc_(container);
+    D3DCOMPILERAPI_DISPATCH    *dispatch = compiler_->DispatchTable;
+    GPUCC_RESULT                  result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
+    ID3DBlob                       *code = nullptr;
+    ID3DBlob                        *log = nullptr;
+    HRESULT                          res = S_OK;
+    DWORD                         flags1 = D3DCOMPILE_DEBUG | D3DCOMPILE_WARNINGS_ARE_ERRORS;
+    DWORD                         flags2 = 0;
+
+    /* TODO: Need some way to specify flags1 */
+    res = dispatch->D3DCompile
+    (
+        source_code, 
+        source_size, 
+        source_path, 
+        compiler_->DefineArray, 
+        nullptr, /* ID3DInclude* pInclude */
+        entry_point, 
+        compiler_->ShaderModel, 
+        flags1, 
+        flags2, 
+        &code, 
+        &log
+    );
+    if (FAILED(res)) {
+        result = gpuccMakeResult(GPUCC_RESULT_CODE_COMPILE_FAILED);
+    }
+
+    if (code != nullptr) {
+        container_->CommonFields.BytecodeSize   =(uint64_t) code->GetBufferSize();
+        container_->CommonFields.BytecodeBuffer =(uint8_t*) code->GetBufferPointer();
+    } else {
+        container_->CommonFields.BytecodeSize   = 0;
+        container_->CommonFields.BytecodeBuffer = nullptr;
+    } container_->CodeBuffer = code;
+
+    if (log != nullptr) {
+        container_->CommonFields.LogBufferSize  =(uint64_t) log->GetBufferSize();
+        container_->CommonFields.LogBuffer      =(char   *) log->GetBufferPointer();
+    } else {
+        container_->CommonFields.LogBufferSize  = 0;
+        container_->CommonFields.LogBuffer      = nullptr;
+    } container_->ErrorLog = log;
+
+    return result;
 }
 
 /* @summary Allocate and initialize a new compiler record for accessing the fxc (legacy Direct3D) compiler.
@@ -273,14 +347,15 @@ gpuccCreateCompilerFxc
     macros[config->DefineCount] = D3D_SHADER_MACRO { nullptr, nullptr };
 
     /* Finish initializing the compiler structure. */
-    fxc->CommonFields.CompilerType   = GPUCC_COMPILER_TYPE_FXC;
-    fxc->CommonFields.BytecodeType   = GPUCC_BYTECODE_TYPE_DXBC;
-    fxc->CommonFields.CreateBytecode = gpuccCreateProgramBytecodeFxc;
-    fxc->CommonFields.DeleteBytecode = gpuccDeleteProgramBytecodeFxc;
-    fxc->DispatchTable               =&pctx->D3DCompiler_Dispatch;
-    fxc->DefineArray                 = macros;
-    fxc->DefineCount                 = config->DefineCount;
-    fxc->TargetRuntime               = config->TargetRuntime;
+    fxc->CommonFields.CompilerType        = GPUCC_COMPILER_TYPE_FXC;
+    fxc->CommonFields.BytecodeType        = GPUCC_BYTECODE_TYPE_DXBC;
+    fxc->CommonFields.CreateBytecode      = gpuccCreateProgramBytecodeFxc;
+    fxc->CommonFields.DeleteBytecode      = gpuccDeleteProgramBytecodeFxc;
+    fxc->CommonFields.CompileBytecode     = gpuccCompileBytecodeFxc;
+    fxc->DispatchTable                    =&pctx->D3DCompiler_Dispatch;
+    fxc->DefineArray                      = macros;
+    fxc->DefineCount                      = config->DefineCount;
+    fxc->TargetRuntime                    = config->TargetRuntime;
     return (struct GPUCC_PROGRAM_COMPILER*) fxc;
 }
 
@@ -291,6 +366,15 @@ gpuccMakeResult
 )
 {
     return GPUCC_RESULT { library_result, ERROR_SUCCESS };
+}
+
+GPUCC_API(struct GPUCC_RESULT)
+gpuccMakeResult_errno
+(
+    int32_t library_result
+)
+{
+    return GPUCC_RESULT { library_result, (int32_t) errno };
 }
 
 GPUCC_API(struct GPUCC_RESULT)
@@ -339,6 +423,56 @@ gpuccSetLastResult
     GPUCC_RESULT                prev = tctx->LastResult;
     tctx->LastResult = result;
     return prev;
+}
+
+GPUCC_API(struct GPUCC_RESULT)
+gpuccSetProgramEntryPoint
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode, 
+    char const                 *entry_point, 
+    char const                 *source_path
+)
+{
+    GPUCC_PROGRAM_BYTECODE_BASE *bytecode_ =(GPUCC_PROGRAM_BYTECODE_BASE*) bytecode;
+    GPUCC_RESULT                    result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
+    uint8_t                        *buffer = nullptr;
+    uint8_t                           *ptr = nullptr;
+    size_t                          nbneed = 0;
+    size_t                          nbpath = 0;
+    size_t                         nbentry = 0;
+
+    /* Determine the amount of memory required to store copies of the strings. */
+    nbentry = (entry_point != nullptr) ? (strlen(entry_point) + 1) : 1;
+    nbpath  = (source_path != nullptr) ? (strlen(source_path) + 1) : 1;
+    nbneed  = nbentry + nbpath;
+
+    /* Allocate memory for all string data in one buffer. */
+    if ((buffer = (uint8_t*) malloc(nbneed)) == nullptr) {
+        result  = gpuccMakeResult_errno(GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY);
+        DebugPrintfW(L"GpuCC: Failed to allocate %Iu bytes for storing program entry point.\n", nbneed);
+        gpuccSetLastResult(result);
+        return result;
+    } ptr = buffer;
+
+    /* Write the string data to the buffer. */
+    bytecode_->EntryPoint = strputa(ptr, entry_point);
+    bytecode_->SourcePath = strputa(ptr, source_path);
+    return result;
+}
+
+GPUCC_API(int32_t)
+gpuccBytecodeContainerIsEmpty
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode != nullptr) {
+        GPUCC_RESULT r = gpuccQueryBytecodeCompileResult_(bytecode);
+        return r.LibraryResult == GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER;
+    } else {
+        assert(0 && "Invalid bytecode container");
+        return 0;
+    }
 }
 
 GPUCC_API(struct GPUCC_RESULT)
@@ -520,4 +654,51 @@ gpuccDeleteBytecodeContainer
     }
 }
 
+GPUCC_API(struct GPUCC_RESULT)
+gpuccCompileProgramBytecode
+(
+    struct GPUCC_PROGRAM_BYTECODE *container, 
+    char const                  *source_code, 
+    uint64_t                     source_size, 
+    char const                  *source_path, 
+    char const                  *entry_point
+)
+{
+    GPUCC_PROGRAM_BYTECODE_BASE *container_ = nullptr;
+    GPUCC_PROGRAM_COMPILER_BASE  *compiler_ = nullptr;
+    GPUCC_RESULT                     result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
+
+    if (container == nullptr) {
+        result = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT);
+        DebugPrintfW(L"GpuCC: No bytecode container was supplied.\n");
+        gpuccSetLastResult(result);
+        return result;
+    }
+    if (source_code == nullptr || source_size == 0) {
+        result = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT);
+        DebugPrintfW(L"GpuCC: No program source code was supplied.\n");
+        gpuccSetLastResult(result);
+        return result;
+    }
+    if (gpuccBytecodeContainerIsEmpty(container) == 0) {
+        result = gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_BYTECODE_CONTAINER);
+        DebugPrintfW(L"GpuCC: The supplied bytecode container has already been used to compile a program and cannot be reused.\n");
+        gpuccSetLastResult(result);
+        return result;
+    }
+
+    /* Intern strings used for debug output. */
+    container_ =(GPUCC_PROGRAM_BYTECODE_BASE*) container;
+    compiler_  =(GPUCC_PROGRAM_COMPILER_BASE*) gpuccQueryBytecodeCompiler(container);
+    if (gpuccFailure((result = gpuccSetProgramEntryPoint(container, entry_point, source_path)))) {
+        /* gpuccSetProgramEntryPoint called gpuccSetLastResult  */
+        DebugPrintfW(L"GpuCC: Cannot copy program entry point and source path. Compilation cannot proceed.\n");
+        return result;
+    }
+
+    /* Finally, perform the actual compilation. */
+    result = compiler_->CompileBytecode(container, source_code, source_size, container_->SourcePath, container_->EntryPoint);
+    gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+    return result;
+}
 

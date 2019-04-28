@@ -44,6 +44,8 @@
 struct GPUCC_PROGRAM_BYTECODE;
 struct GPUCC_PROGRAM_COMPILER;
 
+/* @summary Define the supported usage modes for the GpuCC library.
+ */
 typedef enum GPUCC_USAGE_MODE {
     GPUCC_USAGE_MODE_OFFLINE                      =   0,                       /* GpuCC is being used for offline compilation, for example, as part of a build process. */
     GPUCC_USAGE_MODE_RUNTIME                      =   1,                       /* GpuCC is being used for runtime compilation. */
@@ -61,8 +63,6 @@ typedef enum GPUCC_BYTECODE_TYPE {
 } GPUCC_BYTECODE_TYPE;
 
 /* @summary Define the supported target runtimes.
- * Only limited combinations of runtime + bytecode type are valid:
- * TODO
  */
 typedef enum GPUCC_TARGET_RUNTIME {
     GPUCC_TARGET_RUNTIME_UNKNOWN                  =   0,                       /* No runtime target is specified. */
@@ -90,6 +90,7 @@ typedef enum GPUCC_ERROR_CODE {
     GPUCC_RESULT_CODE_INVALID_ARGUMENT            =  -9,                       /* One or more supplied arguments are invalid. */
     GPUCC_RESULT_CODE_CANNOT_LOAD                 = -10,                       /* The GpuCC library cannot be dynamically loaded. */
     GPUCC_RESULT_CODE_COMPILE_FAILED              = -11,                       /* Program compilation failed. Check the bytecode object log for more information. */
+    GPUCC_RESULT_CODE_INVALID_BYTECODE_CONTAINER  = -12,                       /* The supplied bytecode container is invalid because it has already been used to store compilation results. */
 } GPUCC_RESULT_CODE;
 
 /* @summary Define the set of supported GPU program compilers. Not all compilers are supported on all platforms.
@@ -296,23 +297,24 @@ gpuccDeleteBytecodeContainer
     struct GPUCC_PROGRAM_BYTECODE *bytecode
 );
 
+/* @summary Compile GPU program source code into intermediate bytecode.
+ * The caller is responsible for processing any source code includes and supplying the full resulting source code in the source_code buffer.
+ * The function blocks the calling thread until compilation has completed.
+ * @param container The container that will be used to store the program bytecode.
+ * @param source_code Pointer to a buffer containing UTF-8 encoded GPU program source code.
+ * @param source_size The number of bytes of program source code in the spurce_code buffer.
+ * @oaram source_path A nul-terminated UTF-8 string specifying the path to the source file, for use in log output. This value may be NULL.
+ * @param entry_point A nul-terminated string specifying the program entry point.
+ * @return The result of the compilation. Use the gpuccSuccess and gpuccFailure macros to determine whether compilation was successful.
+ */
 GPUCC_API(struct GPUCC_RESULT)
 gpuccCompileProgramBytecode
 (
     struct GPUCC_PROGRAM_BYTECODE *container, 
     char const                  *source_code, 
+    uint64_t                     source_size, 
+    char const                  *source_path, 
     char const                  *entry_point
-);
-
-/* @summary Retrieve the GPUCC_RESULT returned by gpuccCompileProgramBytecode.
- * If no compilation has been attempted yet, gpuccSuccess will return non-zero.
- * @param bytecode The GPUCC_PROGRAM_BYTECODE object to query.
- * @return A GPUCC_RESULT specifying the results of the program compilation.
- */
-GPUCC_API(struct GPUCC_RESULT)
-gpuccQueryBytecodeCompileResult
-(
-    struct GPUCC_PROGRAM_BYTECODE *bytecode
 );
 
 /* @summary Retrieve the program compiler used to create a bytecode container.
@@ -336,24 +338,67 @@ gpuccQueryBytecodeEntryPoint
     struct GPUCC_PROGRAM_BYTECODE *bytecode
 );
 
+/* @summary Retrieve the path of the source file for a compiled bytecode object.
+ * @param bytecode The program bytecode object to query.
+ * @return A pointer to a nul-terminated buffer specifying the source file path.
+ * If the bytecode container is empty, the associated string is also empty, but the returned buffer is never NULL.
+ */
+GPUCC_API(char const*)
+gpuccQueryBytecodeSourcePath
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+);
+
+/* @summary Retrieve the GPUCC_RESULT returned by gpuccCompileProgramBytecode.
+ * If no compilation has been attempted yet, gpuccSuccess will return non-zero (that is, a successful result.)
+ * @param bytecode The GPUCC_PROGRAM_BYTECODE object to query.
+ * @return A GPUCC_RESULT specifying the results of the program compilation.
+ */
+GPUCC_API(struct GPUCC_RESULT)
+gpuccQueryBytecodeCompileResult
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+);
+
+/* @summary Retrieve the number of bytes of compiled bytecode data for a compiled bytecode object.
+ * @param bytecode The program bytecode object to query.
+ * @return The number of bytes of compiled bytecode stored in the container.
+ * If the bytecode container is empty (no compilation has been attempted), the return value is zero and gpuccFailure returns zero.
+ * If the program source code could not be compiled for some reason, the return value is zero and gpuccFailure returns non-zero.
+ */
 GPUCC_API(uint64_t)
 gpuccQueryBytecodeSizeBytes
 (
     struct GPUCC_PROGRAM_BYTECODE *bytecode
 );
 
+/* @summary Retrieve the number of bytes of compiler log output for a compiled bytecode object.
+ * @param bytecode The program bytecode object to query.
+ * @return The number of bytes of compiler log text stored in the container.
+ * If the bytecode container is empty (no compilation has been attempted), the return value is zero.
+ */
 GPUCC_API(uint64_t)
 gpuccQueryBytecodeLogSizeBytes
 (
     struct GPUCC_PROGRAM_BYTECODE *bytecode
 );
 
+/* @summary Retrieve a pointer to the start of the buffer containing compiled bytecode.
+ * @param bytecode The program bytecode object to query.
+ * @return A pointer to the start of the bytecode buffer. 
+ * If the bytecode container is empty (no compilation has been attempted) or compilation failed, the return value is NULL.
+ */
 GPUCC_API(uint8_t*)
 gpuccQueryBytecodeBuffer
 (
     struct GPUCC_PROGRAM_BYTECODE *bytecode
 );
 
+/* @summary Retrieve a pointer to the start of the buffer containing compiler log text for a GPU program.
+ * @param bytecode The program bytecode object to query.
+ * @return A pointer to the start of the compiler log buffer.
+ * If the bytecode container is empty (no compilation has been attempted) the return value is NULL.
+ */
 GPUCC_API(char*)
 gpuccQueryBytecodeLogBuffer
 (
@@ -488,10 +533,18 @@ typedef int32_t                        (*PFN_gpuccQueryCompilerType         )(st
 typedef int32_t                        (*PFN_gpuccQueryBytecodeType         )(struct GPUCC_PROGRAM_COMPILER*);
 typedef struct GPUCC_PROGRAM_BYTECODE* (*PFN_gpuccCreateBytecodeContainer   )(struct GPUCC_PROGRAM_COMPILER*);
 typedef void                           (*PFN_gpuccDeleteBytecodeContainer   )(struct GPUCC_PROGRAM_BYTECODE*);
-typedef struct GPUCC_RESULT            (*PFN_gpuccQueryBytecodeCompileResult)(struct GPUCC_PROGRAM_BYTECODE*);
 typedef struct GPUCC_PROGRAM_COMPILER* (*PFN_gpuccQueryBytecodeCompiler     )(struct GPUCC_PROGRAM_BYTECODE*);
 typedef char const*                    (*PFN_gpuccQueryBytecodeEntryPoint   )(struct GPUCC_PROGRAM_BYTECODE*);
+typedef char const*                    (*PFN_gpuccQueryBytecodeSourcePath   )(struct GPUCC_PROGRAM_BYTECODE*);
+typedef struct GPUCC_RESULT            (*PFN_gpuccQueryBytecodeCompileResult)(struct GPUCC_PROGRAM_BYTECODE*);
+typedef uint64_t                       (*PFN_gpuccQueryBytecodeSizeBytes    )(struct GPUCC_PROGRAM_BYTECODE*);
+typedef uint64_t                       (*PFN_gpuccQueryBytecodeLogSizeBytes )(struct GPUCC_PROGRAM_BYTECODE*);
+typedef uint8_t*                       (*PFN_gpuccQueryBytecodeBuffer       )(struct GPUCC_PROGRAM_BYTECODE*);
+typedef char*                          (*PFN_gpuccQueryBytecodeLogBuffer    )(struct GPUCC_PROGRAM_BYTECODE*);
+typedef struct GPUCC_RESULT            (*PFN_gpuccCompileProgramBytecode    )(struct GPUCC_PROGRAM_BYTECODE*, char const*, uint64_t, char const*, char const*);
 
+/* @summary Define the dispatch table structure used for calling runtime-resolved GpuCC entry points.
+ */
 typedef struct GPUCC_LOADER_DISPATCH {
     PFN_gpuccVersion                     gpuccVersion;
     PFN_gpuccFailure                     gpuccFailure;
@@ -508,9 +561,15 @@ typedef struct GPUCC_LOADER_DISPATCH {
     PFN_gpuccQueryBytecodeType           gpuccQueryBytecodeType;
     PFN_gpuccCreateBytecodeContainer     gpuccCreateBytecodeContainer;
     PFN_gpuccDeleteBytecodeContainer     gpuccDeleteBytecodeContainer;
-    PFN_gpuccQueryBytecodeCompileResult  gpuccQueryBytecodeCompileResult;
     PFN_gpuccQueryBytecodeCompiler       gpuccQueryBytecodeCompiler;
     PFN_gpuccQueryBytecodeEntryPoint     gpuccQueryBytecodeEntryPoint;
+    PFN_gpuccQueryBytecodeSourcePath     gpuccQueryBytecodeSourcePath;
+    PFN_gpuccQueryBytecodeCompileResult  gpuccQueryBytecodeCompileResult;
+    PFN_gpuccQueryBytecodeSizeBytes      gpuccQueryBytecodeSizeBytes;
+    PFN_gpuccQueryBytecodeLogSizeBytes   gpuccQueryBytecodeLogSizeBytes;
+    PFN_gpuccQueryBytecodeBuffer         gpuccQueryBytecodeBuffer;
+    PFN_gpuccQueryBytecodeLogBuffer      gpuccQueryBytecodeLogBuffer;
+    PFN_gpuccCompileProgramBytecode      gpuccCompileProgramBytecode;
     GPUCC_RUNTIME_MODULE                 ModuleHandle_GpuCC;
 } GPUCC_LOADER_DISPATCH;
 
@@ -553,21 +612,22 @@ gpuccErrorString_Stub
 )
 {
     switch (gpucc_result_code) {
-        case GPUCC_RESULT_CODE_SUCCESS                 : return "GPUCC_RESULT_CODE_SUCCESS";
-        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED     : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
-        case GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER: return "GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER";
-        case GPUCC_RESULT_CODE_NOT_INITIALIZED         : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
-        case GPUCC_RESULT_CODE_PLATFORM_ERROR          : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
-        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE      : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
-        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED  : return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
-        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY      : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
-        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE  : return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
-        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME  : return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
-        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE   : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
-        case GPUCC_RESULT_CODE_INVALID_ARGUMENT        : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
-        case GPUCC_RESULT_CODE_CANNOT_LOAD             : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
-        case GPUCC_RESULT_CODE_COMPILE_FAILED          : return "GPUCC_RESULT_CODE_COMPILE_FAILED";
-        default                                        : return "GPUCC_RESULT_CODE (unknown)";
+        case GPUCC_RESULT_CODE_SUCCESS                   : return "GPUCC_RESULT_CODE_SUCCESS";
+        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED       : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
+        case GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER  : return "GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER";
+        case GPUCC_RESULT_CODE_NOT_INITIALIZED           : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
+        case GPUCC_RESULT_CODE_PLATFORM_ERROR            : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
+        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE        : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
+        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED    : return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
+        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY        : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE    : return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME    : return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
+        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE     : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
+        case GPUCC_RESULT_CODE_INVALID_ARGUMENT          : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
+        case GPUCC_RESULT_CODE_CANNOT_LOAD               : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
+        case GPUCC_RESULT_CODE_COMPILE_FAILED            : return "GPUCC_RESULT_CODE_COMPILE_FAILED";
+        case GPUCC_RESULT_CODE_INVALID_BYTECODE_CONTAINER: return "GPUCC_RESULT_CODE_INVALID_BYTECODE_CONTAINER";
+        default                                          : return "GPUCC_RESULT_CODE (unknown)";
     }
 }
 
@@ -694,22 +754,16 @@ gpuccCompileProgramBytecode_Stub
 (
     struct GPUCC_PROGRAM_BYTECODE *container, 
     char const                  *source_code, 
+    uint64_t                     source_size, 
+    char const                  *source_path, 
     char const                  *entry_point
 )
 {
     GPUCC_LOADER_UNUSED(container);
     GPUCC_LOADER_UNUSED(source_code);
+    GPUCC_LOADER_UNUSED(source_size);
+    GPUCC_LOADER_UNUSED(source_path);
     GPUCC_LOADER_UNUSED(entry_point);
-    return GPUCC_RESULT{ GPUCC_RESULT_CODE_CANNOT_LOAD, 0 };
-}
-
-static struct GPUCC_RESULT
-gpuccQueryBytecodeCompileResult_Stub
-(
-    struct GPUCC_PROGRAM_BYTECODE *bytecode
-)
-{
-    GPUCC_LOADER_UNUSED(bytecode);
     return GPUCC_RESULT{ GPUCC_RESULT_CODE_CANNOT_LOAD, 0 };
 }
 
@@ -731,6 +785,66 @@ gpuccQueryBytecodeEntryPoint_Stub
 {
     GPUCC_LOADER_UNUSED(bytecode);
     return "";
+}
+
+static char const*
+gpuccQueryBytecodeSourcePath_Stub
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    GPUCC_LOADER_UNUSED(bytecode);
+    return "";
+}
+
+static struct GPUCC_RESULT
+gpuccQueryBytecodeCompileResult_Stub
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    GPUCC_LOADER_UNUSED(bytecode);
+    return GPUCC_RESULT{ GPUCC_RESULT_CODE_CANNOT_LOAD, 0 };
+}
+
+static uint64_t
+gpuccQueryBytecodeSizeBytes_Stub
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    GPUCC_LOADER_UNUSED(bytecode);
+    return 0;
+}
+
+static uint64_t
+gpuccQueryBytecodeLogSizeBytes_Stub
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    GPUCC_LOADER_UNUSED(bytecode);
+    return 0;
+}
+
+static uint8_t*
+gpuccQueryBytecodeBuffer_Stub
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    GPUCC_LOADER_UNUSED(bytecode);
+    return NULL;
+}
+
+static char*
+gpuccQueryBytecodeLogBuffer_Stub
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    GPUCC_LOADER_UNUSED(bytecode);
+    return NULL;
 }
 
 /*** LOADER IMPLEMENTATION ***/
@@ -755,9 +869,15 @@ gpuccLoaderStubDispatch
     dispatch->gpuccQueryBytecodeType          = gpuccQueryBytecodeType_Stub;
     dispatch->gpuccCreateBytecodeContainer    = gpuccCreateBytecodeContainer_Stub;
     dispatch->gpuccDeleteBytecodeContainer    = gpuccDeleteBytecodeContainer_Stub;
-    dispatch->gpuccQueryBytecodeCompileResult = gpuccQueryBytecodeCompileResult_Stub;
     dispatch->gpuccQueryBytecodeCompiler      = gpuccQueryBytecodeCompiler_Stub;
     dispatch->gpuccQueryBytecodeEntryPoint    = gpuccQueryBytecodeEntryPoint_Stub;
+    dispatch->gpuccQueryBytecodeSourcePath    = gpuccQueryBytecodeSourcePath_Stub;
+    dispatch->gpuccQueryBytecodeCompileResult = gpuccQueryBytecodeCompileResult_Stub;
+    dispatch->gpuccQueryBytecodeSizeBytes     = gpuccQueryBytecodeSizeBytes_Stub;
+    dispatch->gpuccQueryBytecodeLogSizeBytes  = gpuccQueryBytecodeLogSizeBytes_Stub;
+    dispatch->gpuccQueryBytecodeBuffer        = gpuccQueryBytecodeBuffer_Stub;
+    dispatch->gpuccQueryBytecodeLogBuffer     = gpuccQueryBytecodeLogBuffer_Stub;
+    dispatch->gpuccCompileProgramBytecode     = gpuccCompileProgramBytecode_Stub;
     dispatch->ModuleHandle_GpuCC              = NULL;
 }
 
@@ -783,9 +903,15 @@ gpuccLoaderPopulateDispatchFrom
     gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeType);
     gpuccResolveRuntimeFunction(dispatch, module, gpuccCreateBytecodeContainer);
     gpuccResolveRuntimeFunction(dispatch, module, gpuccDeleteBytecodeContainer);
-    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeCompileResult);
     gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeCompiler);
     gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeEntryPoint);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeSourcePath);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeCompileResult);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeSizeBytes);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeLogSizeBytes);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeBuffer);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccQueryBytecodeLogBuffer);
+    gpuccResolveRuntimeFunction(dispatch, module, gpuccCompileProgramBytecode);
     dispatch->ModuleHandle_GpuCC        = module;
     return module != NULL;
 }
@@ -972,28 +1098,6 @@ gpuccLoaderInvalidateDispatch
         g_gpuccDispatch.gpuccDeleteBytecodeContainer(bytecode);
     }
 
-#if 0
-    GPUCC_API(struct GPUCC_RESULT)
-    gpuccCompileProgramBytecode
-    (
-        struct GPUCC_PROGRAM_BYTECODE *container, 
-        char const                  *source_code, 
-        char const                  *entry_point
-    )
-    {
-        return g_gpuccDispatch.gpuccCompileProgramBytecode(container, source_code, entry_point);
-    }
-#endif
-
-    GPUCC_API(struct GPUCC_RESULT)
-    gpuccQueryBytecodeCompileResult
-    (
-        struct GPUCC_PROGRAM_BYTECODE *bytecode
-    )
-    {
-        return g_gpuccDispatch.gpuccQueryBytecodeCompileResult(bytecode);
-    }
-
     GPUCC_API(struct GPUCC_PROGRAM_COMPILER*)
     gpuccQueryBytecodeCompiler
     (
@@ -1010,6 +1114,73 @@ gpuccLoaderInvalidateDispatch
     )
     {
         return g_gpuccDispatch.gpuccQueryBytecodeEntryPoint(bytecode);
+    }
+
+    GPUCC_API(char const*)
+    gpuccQueryBytecodeSourcePath
+    (
+        struct GPUCC_PROGRAM_BYTECODE *bytecode
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeSourcePath(bytecode);
+    }
+
+    GPUCC_API(struct GPUCC_RESULT)
+    gpuccQueryBytecodeCompileResult
+    (
+        struct GPUCC_PROGRAM_BYTECODE *bytecode
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeCompileResult(bytecode);
+    }
+
+    GPUCC_API(uint64_t)
+    gpuccQueryBytecodeSizeBytes
+    (
+        struct GPUCC_PROGRAM_BYTECODE *bytecode
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeSizeBytes(bytecode);
+    }
+
+    GPUCC_API(uint64_t)
+    gpuccQueryBytecodeLogSizeBytes
+    (
+        struct GPUCC_PROGRAM_BYTECODE *bytecode
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeLogSizeBytes(bytecode);
+    }
+
+    GPUCC_API(uint8_t*)
+    gpuccQueryBytecodeBuffer
+    (
+        struct GPUCC_PROGRAM_BYTECODE *bytecode
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeBuffer(bytecode);
+    }
+
+    GPUCC_API(char*)
+    gpuccQueryBytecodeLogBuffer
+    (
+        struct GPUCC_PROGRAM_BYTECODE *bytecode
+    )
+    {
+        return g_gpuccDispatch.gpuccQueryBytecodeLogBuffer(bytecode);
+    }
+
+    GPUCC_API(struct GPUCC_RESULT)
+    gpuccCompileProgramBytecode
+    (
+        struct GPUCC_PROGRAM_BYTECODE *container, 
+        char const                  *source_code, 
+        uint64_t                     source_size, 
+        char const                  *source_path, 
+        char const                  *entry_point
+    )
+    {
+        return g_gpuccDispatch.gpuccCompileProgramBytecode(container, source_code, source_size, source_path, entry_point);
     }
 
 #endif /* GPUCC_LOCAL_RUNTIME_IMPLEMENTATION */

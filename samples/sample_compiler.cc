@@ -35,12 +35,26 @@ int main
         config.DefineCount   = 3;
         config.BytecodeType  = GPUCC_BYTECODE_TYPE_DXBC;
         config.TargetRuntime = GPUCC_TARGET_RUNTIME_DIRECT3D12;
-        config.TargetProfile = "cs_5_0";
+        config.TargetProfile = "ps_5_0";
         struct GPUCC_PROGRAM_COMPILER *c = gpuccCreateCompiler(&config);
         GPUCC_COMPILER_TYPE ct = (GPUCC_COMPILER_TYPE) gpuccQueryCompilerType(c);
         GPUCC_BYTECODE_TYPE bt = (GPUCC_BYTECODE_TYPE) gpuccQueryBytecodeType(c);
         GPUCC_LOADER_UNUSED(ct);
         GPUCC_LOADER_UNUSED(bt);
+        struct GPUCC_PROGRAM_BYTECODE *b = gpuccCreateBytecodeContainer(c);
+        char const  *hlsl_code = "float4 main() : SV_TARGET0\r\n{\r\n    return float4(0, 1, 0, 1);\r\n}\r\n";
+        GPUCC_RESULT cl_result = gpuccCompileProgramBytecode(b, hlsl_code, strlen(hlsl_code), "Inlined", "main");
+        if (gpuccFailure(cl_result)) {
+            printf("BUILD FAILED:\r\n");
+            printf(gpuccQueryBytecodeLogBuffer(b));
+            printf("\r\n");
+        } else {
+            printf("BUILD SUCCEEDED.\r\n");
+            FILE *fp = nullptr; fopen_s(&fp, "compiled.dxbc", "w");
+            fwrite(gpuccQueryBytecodeBuffer(b), sizeof(uint8_t), gpuccQueryBytecodeSizeBytes(b), fp);
+            fclose(fp);
+        }
+        gpuccDeleteBytecodeContainer(b);
         gpuccDeleteCompiler(c);
     }
     (void) argc;

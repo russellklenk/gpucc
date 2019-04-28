@@ -44,21 +44,22 @@ gpuccErrorString
 )
 {
     switch (gpucc_result_code) {
-        case GPUCC_RESULT_CODE_SUCCESS                 : return "GPUCC_RESULT_CODE_SUCCESS";
-        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED     : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
-        case GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER: return "GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER";
-        case GPUCC_RESULT_CODE_NOT_INITIALIZED         : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
-        case GPUCC_RESULT_CODE_PLATFORM_ERROR          : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
-        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE      : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
-        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED  : return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
-        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY      : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
-        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE  : return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
-        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME  : return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
-        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE   : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
-        case GPUCC_RESULT_CODE_INVALID_ARGUMENT        : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
-        case GPUCC_RESULT_CODE_CANNOT_LOAD             : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
-        case GPUCC_RESULT_CODE_COMPILE_FAILED          : return "GPUCC_RESULT_CODE_COMPILE_FAILED";
-        default                                        : return "GPUCC_RESULT_CODE (unknown)";
+        case GPUCC_RESULT_CODE_SUCCESS                   : return "GPUCC_RESULT_CODE_SUCCESS";
+        case GPUCC_RESULT_CODE_ALREADY_INITIALIZED       : return "GPUCC_RESULT_CODE_ALREADY_INITIALIZED";
+        case GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER  : return "GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER";
+        case GPUCC_RESULT_CODE_NOT_INITIALIZED           : return "GPUCC_RESULT_CODE_NOT_INITIALIZED";
+        case GPUCC_RESULT_CODE_PLATFORM_ERROR            : return "GPUCC_RESULT_CODE_PLATFORM_ERROR";
+        case GPUCC_RESULT_CODE_INVALID_USAGE_MODE        : return "GPUCC_RESULT_CODE_INVALID_USAGE_MODE";
+        case GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED    : return "GPUCC_RESULT_CODE_COMPILER_NOT_SUPPORTED";
+        case GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY        : return "GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE    : return "GPUCC_RESULT_CODE_INVALID_TARGET_PROFILE";
+        case GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME    : return "GPUCC_RESULT_CODE_INVALID_TARGET_RUNTIME";
+        case GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE     : return "GPUCC_RESULT_CODE_INVALID_BYTECODE_TYPE";
+        case GPUCC_RESULT_CODE_INVALID_ARGUMENT          : return "GPUCC_RESULT_CODE_INVALID_ARGUMENT";
+        case GPUCC_RESULT_CODE_CANNOT_LOAD               : return "GPUCC_RESULT_CODE_CANNOT_LOAD";
+        case GPUCC_RESULT_CODE_COMPILE_FAILED            : return "GPUCC_RESULT_CODE_COMPILE_FAILED";
+        case GPUCC_RESULT_CODE_INVALID_BYTECODE_CONTAINER: return "GPUCC_RESULT_CODE_INVALID_BYTECODE_CONTAINER";
+        default                                          : return "GPUCC_RESULT_CODE (unknown)";
     }
 }
 
@@ -101,8 +102,10 @@ gpuccQueryCompilerType
 )
 {
     if (compiler) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
         return gpuccQueryCompilerType_(compiler);
     } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
         return GPUCC_COMPILER_TYPE_UNKNOWN;
     }
 }
@@ -114,22 +117,11 @@ gpuccQueryBytecodeType
 )
 {
     if (compiler) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
         return gpuccQueryBytecodeType_(compiler);
     } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
         return GPUCC_COMPILER_TYPE_UNKNOWN;
-    }
-}
-
-GPUCC_API(struct GPUCC_RESULT)
-gpuccQueryBytecodeCompileResult
-(
-    struct GPUCC_PROGRAM_BYTECODE *bytecode
-)
-{
-    if (bytecode) {
-        return gpuccQueryBytecodeCompileResult_(bytecode);
-    } else {
-        return GPUCC_RESULT { GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER, 0 };
     }
 }
 
@@ -140,8 +132,10 @@ gpuccQueryBytecodeCompiler
 )
 {
     if (bytecode) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
         return gpuccQueryBytecodeCompiler_(bytecode);
     } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
         return nullptr;
     }
 }
@@ -154,11 +148,106 @@ gpuccQueryBytecodeEntryPoint
 {
     char const *entry = nullptr;
     if (bytecode) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
         entry = gpuccQueryBytecodeEntryPoint_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
     }
     if (entry == nullptr) {
         entry = g_EmptyUtf8String;
+    } return entry;
+}
+
+GPUCC_API(char const*)
+gpuccQueryBytecodeSourcePath
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    char const *path = nullptr;
+    if (bytecode) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+        path = gpuccQueryBytecodeSourcePath_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
     }
-    return entry;
+    if (path == nullptr) {
+        path = g_EmptyUtf8String;
+    } return path;
+}
+
+GPUCC_API(struct GPUCC_RESULT)
+gpuccQueryBytecodeCompileResult
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+        return gpuccQueryBytecodeCompileResult_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
+        return GPUCC_RESULT { GPUCC_RESULT_CODE_EMPTY_BYTECODE_CONTAINER, 0 };
+    }
+}
+
+GPUCC_API(uint64_t)
+gpuccQueryBytecodeSizeBytes
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode != nullptr) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+        return gpuccQueryBytecodeSizeBytes_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
+        return 0;
+    }
+}
+
+GPUCC_API(uint64_t)
+gpuccQueryBytecodeLogSizeBytes
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode != nullptr) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+        return gpuccQueryBytecodeLogSizeBytes_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
+        return 0;
+    }
+}
+
+GPUCC_API(uint8_t*)
+gpuccQueryBytecodeBuffer
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode != nullptr) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+        return gpuccQueryBytecodeBuffer_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
+        return 0;
+    }
+}
+
+GPUCC_API(char*)
+gpuccQueryBytecodeLogBuffer
+(
+    struct GPUCC_PROGRAM_BYTECODE *bytecode
+)
+{
+    if (bytecode != nullptr) {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS));
+        return gpuccQueryBytecodeLogBuffer_(bytecode);
+    } else {
+        gpuccSetLastResult(gpuccMakeResult(GPUCC_RESULT_CODE_INVALID_ARGUMENT));
+        return 0;
+    }
 }
 

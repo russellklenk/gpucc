@@ -13,4 +13,15 @@ EXPORTS
     gpuccDeleteCompiler
     gpuccQueryCompilerType
     gpuccQueryBytecodeType
+    gpuccCreateBytecodeContainer
+    gpuccDeleteBytecodeContainer
+    gpuccCompileProgramBytecode
+    gpuccQueryBytecodeCompiler
+    gpuccQueryBytecodeEntryPoint
+    gpuccQueryBytecodeSourcePath
+    gpuccQueryBytecodeCompileResult
+    gpuccQueryBytecodeSizeBytes
+    gpuccQueryBytecodeLogSizeBytes
+    gpuccQueryBytecodeBuffer
+    gpuccQueryBytecodeLogBuffer
 
