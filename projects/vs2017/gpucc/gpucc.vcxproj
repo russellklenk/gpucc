@@ -25,6 +25,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\src\gpucc.cc" />
     <ClCompile Include="..\..\..\src\win32\dllmain.cc" />
+    <ClCompile Include="..\..\..\src\win32\dxccompilerapi_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\fxccompilerapi_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\gpucc_internal_win32.cc" />
   </ItemGroup>
