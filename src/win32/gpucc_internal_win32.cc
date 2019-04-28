@@ -485,6 +485,7 @@ gpuccStartup
     GPUCC_RESULT               result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
     uint32_t        fxccompiler_flags = FXCCOMPILERAPI_LOADER_FLAGS_NONE;
     uint32_t        dxccompiler_flags = DXCCOMPILERAPI_LOADER_FLAGS_NONE;
+    uint32_t        ptxcompiler_flags = PTXCOMPILERAPI_LOADER_FLAGS_NONE;
 
     if (gpucc_usage_mode != GPUCC_USAGE_MODE_OFFLINE && 
         gpucc_usage_mode != GPUCC_USAGE_MODE_RUNTIME) {
@@ -507,6 +508,9 @@ gpuccStartup
     if (DxcCompilerApiPopulateDispatch(&pctx->DxcCompiler_Dispatch, dxccompiler_flags) != 0) {
         pctx->CompilerSupport |= GPUCC_COMPILER_SUPPORT_DXC;
     }
+    if (PtxCompilerApiPopulateDispatch(&pctx->PtxCompiler_Dispatch, ptxcompiler_flags) != 0) {
+        pctx->CompilerSupport |= GPUCC_COMPILER_SUPPORT_NVRTC;
+    }
     /* ... */
     pctx->StartupFlag = TRUE;
     return result;
@@ -521,6 +525,7 @@ gpuccShutdown
     GPUCC_PROCESS_CONTEXT_WIN32 *pctx = gpuccGetProcessContext_();
 
     /* Invalidate the dispatch tables for any available compilers. */
+    PtxCompilerApiInvalidateDispatch(&pctx->PtxCompiler_Dispatch);
     DxcCompilerApiInvalidateDispatch(&pctx->DxcCompiler_Dispatch);
     FxcCompilerApiInvalidateDispatch(&pctx->FxcCompiler_Dispatch);
     /* ... */

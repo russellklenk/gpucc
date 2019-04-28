@@ -6,7 +6,7 @@
 #include "win32/dxccompilerapi_win32.h"
 
 /* @summary Define a general signature for a dynamically loaded function. 
- * Code will have to case the function pointer to the specific type.
+ * Code will have to cast the function pointer to the specific type.
  */
 typedef int (*PFN_Unknown)(void);
 

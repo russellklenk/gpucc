@@ -14,6 +14,9 @@
 #   ifndef __GPUCC_DXCCOMPILERAPI_WIN32_H__
 #       include "win32/dxccompilerapi_win32.h"
 #   endif
+#   ifndef __GPUCC_PTXCOMPILERAPI_WIN32_H__
+#       include "win32/ptxcompilerapi_win32.h"
+#   endif
 #endif
 
 #ifndef __GPUCC_INTERNAL_H__
@@ -55,6 +58,7 @@ typedef struct GPUCC_PROCESS_CONTEXT_WIN32 {
     BOOL                          StartupFlag;                                 /* Set to TRUE when gpuccStartup completes successfully, or FALSE otherwise. */
     FXCCOMPILERAPI_DISPATCH       FxcCompiler_Dispatch;                        /* The dispatch table for the legacy Direct3D compiler, loaded from d3dcompiler_47.dll. */
     DXCCOMPILERAPI_DISPATCH       DxcCompiler_Dispatch;                        /* The dispatch table for the newer Clang/LLVM-based Direct3D compiler, loaded from dxcompiler.dll. */
+    PTXCOMPILERAPI_DISPATCH       PtxCompiler_Dispatch;                        /* The dispatch table for the nVidia RTC (runtime CUDA) compiler, loaded from nvrtc64_###_#.dll. */
 } GPUCC_PROCESS_CONTEXT_WIN32;
 
 /* @summary Define the platform-specific GPUCC_THREAD_CONTEXT structure.
