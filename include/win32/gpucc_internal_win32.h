@@ -8,8 +8,11 @@
 #pragma once
 
 #ifndef GPUCC_NO_INCLUDES
-#   ifndef __GPUCC_D3DCOMPILERAPI_WIN32_H__
-#       include "win32/d3dcompilerapi_win32.h"
+#   ifndef __GPUCC_FXCCOMPILERAPI_WIN32_H__
+#       include "win32/fxccompilerapi_win32.h"
+#   endif
+#   ifndef __GPUCC_DXCCOMPILERAPI_WIN32_H__
+#       include "win32/dxccompilerapi_win32.h"
 #   endif
 #endif
 
@@ -50,7 +53,8 @@ typedef struct GPUCC_PROCESS_CONTEXT_WIN32 {
     uint32_t                      CompilerSupport;                             /* One or more bitwise-OR'd GPUCC_COMPILER_SUPPORT flags indicating which compilers are supported. */
     BOOL                          InitializationFlag;                          /* Set to TRUE when the process context has been initialized, or FALSE otherwise. */
     BOOL                          StartupFlag;                                 /* Set to TRUE when gpuccStartup completes successfully, or FALSE otherwise. */
-    D3DCOMPILERAPI_DISPATCH       D3DCompiler_Dispatch;                        /* The dispatch table for the legacy Direct3D compiler, loaded from d3dcompiler_47.dll. */
+    FXCCOMPILERAPI_DISPATCH       FxcCompiler_Dispatch;                        /* The dispatch table for the legacy Direct3D compiler, loaded from d3dcompiler_47.dll. */
+    DXCCOMPILERAPI_DISPATCH       DxcCompiler_Dispatch;                        /* The dispatch table for the newer Clang/LLVM-based Direct3D compiler, loaded from dxcompiler.dll. */
 } GPUCC_PROCESS_CONTEXT_WIN32;
 
 /* @summary Define the platform-specific GPUCC_THREAD_CONTEXT structure.
@@ -65,7 +69,7 @@ typedef struct GPUCC_THREAD_CONTEXT_WIN32 {
  */
 typedef struct GPUCC_COMPILER_FXC_WIN32 {
     GPUCC_PROGRAM_COMPILER_BASE   CommonFields;                                /* This must be the first field of any compiler type. */
-    D3DCOMPILERAPI_DISPATCH      *DispatchTable;                               /* A pointer to the d3dcompiler dispatch table maintained by the process context. */
+    FXCCOMPILERAPI_DISPATCH      *DispatchTable;                               /* A pointer to the d3dcompiler dispatch table maintained by the process context. */
     D3D_SHADER_MACRO             *DefineArray;                                 /* An array of D3D_SHADER_MACRO specifying the symbols and values defined for the compiler. */
     uint32_t                      DefineCount;                                 /* The number of valid elements in the D3D_SHADER_MACRO array. */
     int32_t                       TargetRuntime;                               /* One of the values of the GPUCC_TARGET_RUNTIME enumeration specifying the target runtime for shaders built by the compiler. */

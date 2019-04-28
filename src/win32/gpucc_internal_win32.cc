@@ -206,7 +206,7 @@ gpuccCompileBytecodeFxc
 {
     GPUCC_COMPILER_FXC_WIN32  *compiler_ = gpuccCompilerFxc_(gpuccQueryBytecodeCompiler_(container));
     GPUCC_BYTECODE_FXC_WIN32 *container_ = gpuccBytecodeFxc_(container);
-    D3DCOMPILERAPI_DISPATCH    *dispatch = compiler_->DispatchTable;
+    FXCCOMPILERAPI_DISPATCH    *dispatch = compiler_->DispatchTable;
     GPUCC_RESULT                  result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
     ID3DBlob                       *code = nullptr;
     ID3DBlob                        *log = nullptr;
@@ -352,7 +352,7 @@ gpuccCreateCompilerFxc
     fxc->CommonFields.CreateBytecode      = gpuccCreateProgramBytecodeFxc;
     fxc->CommonFields.DeleteBytecode      = gpuccDeleteProgramBytecodeFxc;
     fxc->CommonFields.CompileBytecode     = gpuccCompileBytecodeFxc;
-    fxc->DispatchTable                    =&pctx->D3DCompiler_Dispatch;
+    fxc->DispatchTable                    =&pctx->FxcCompiler_Dispatch;
     fxc->DefineArray                      = macros;
     fxc->DefineCount                      = config->DefineCount;
     fxc->TargetRuntime                    = config->TargetRuntime;
@@ -483,7 +483,7 @@ gpuccStartup
 {
     GPUCC_PROCESS_CONTEXT_WIN32 *pctx = gpuccGetProcessContext_();
     GPUCC_RESULT               result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
-    uint32_t        d3dcompiler_flags = D3DCOMPILERAPI_LOADER_FLAGS_NONE;
+    uint32_t        fxccompiler_flags = FXCCOMPILERAPI_LOADER_FLAGS_NONE;
 
     if (gpucc_usage_mode != GPUCC_USAGE_MODE_OFFLINE && 
         gpucc_usage_mode != GPUCC_USAGE_MODE_RUNTIME) {
@@ -495,12 +495,12 @@ gpuccStartup
 
     /* When being used in offline mode, enable development-only features. */
     if (gpucc_usage_mode  == GPUCC_USAGE_MODE_OFFLINE) {
-        d3dcompiler_flags |= D3DCOMPILERAPI_LOADER_FLAG_DEVELOPMENT;
+        fxccompiler_flags |= FXCCOMPILERAPI_LOADER_FLAG_DEVELOPMENT;
     }
 
     /* Populate dispatch tables for any available compilers. */
     pctx->CompilerSupport = GPUCC_COMPILER_SUPPORT_NONE;
-    if (D3DCompilerApiPopulateDispatch(&pctx->D3DCompiler_Dispatch, d3dcompiler_flags) != 0) {
+    if (FxcCompilerApiPopulateDispatch(&pctx->FxcCompiler_Dispatch, fxccompiler_flags) != 0) {
         pctx->CompilerSupport |= GPUCC_COMPILER_SUPPORT_FXC;
     }
     /* ... */
@@ -517,7 +517,7 @@ gpuccShutdown
     GPUCC_PROCESS_CONTEXT_WIN32 *pctx = gpuccGetProcessContext_();
 
     /* Invalidate the dispatch tables for any available compilers. */
-    D3DCompilerApiInvalidateDispatch(&pctx->D3DCompiler_Dispatch);
+    FxcCompilerApiInvalidateDispatch(&pctx->FxcCompiler_Dispatch);
     /* ... */
 
     pctx->CompilerSupport = GPUCC_COMPILER_SUPPORT_NONE;

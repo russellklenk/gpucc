@@ -18,13 +18,14 @@
     <ClInclude Include="..\..\..\include\shaderc\shaderc.h" />
     <ClInclude Include="..\..\..\include\shaderc\status.h" />
     <ClInclude Include="..\..\..\include\shaderc\visibility.h" />
-    <ClInclude Include="..\..\..\include\win32\d3dcompilerapi_win32.h" />
+    <ClInclude Include="..\..\..\include\win32\dxccompilerapi_win32.h" />
+    <ClInclude Include="..\..\..\include\win32\fxccompilerapi_win32.h" />
     <ClInclude Include="..\..\..\include\win32\gpucc_internal_win32.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\gpucc.cc" />
-    <ClCompile Include="..\..\..\src\win32\d3dcompilerapi_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\dllmain.cc" />
+    <ClCompile Include="..\..\..\src\win32\fxccompilerapi_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\gpucc_internal_win32.cc" />
   </ItemGroup>
   <ItemGroup>

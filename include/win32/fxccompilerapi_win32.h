@@ -1,12 +1,12 @@
 /**
- * @summary d3dcompilerapi_win32.h: Define an interface used for dynamically 
+ * @summary fxccompilerapi_win32.h: Define an interface used for dynamically 
  * loading d3dcompiler_##.dll into the process address space and resolving 
  * available entry points. This is needed so that HLSL source code can be 
  * compiled into byte code at runtime, which is useful during development.
  * Any entry points specific to Direct3D versions prior to 12 are not present.
  */
-#ifndef __GPUCC_D3DCOMPILERAPI_WIN32_H__
-#define __GPUCC_D3DCOMPILERAPI_WIN32_H__
+#ifndef __GPUCC_FXCCOMPILERAPI_WIN32_H__
+#define __GPUCC_FXCCOMPILERAPI_WIN32_H__
 
 #pragma once
 
@@ -42,7 +42,7 @@ typedef HRESULT (WINAPI *PFN_D3DWriteBlobToFile           )(ID3DBlob*, LPCWSTR, 
 
 /* @summary Define the data associated with the dispatch table used to call functions from d3dcompiler.dll.
  */
-typedef struct D3DCOMPILERAPI_DISPATCH {
+typedef struct FXCCOMPILERAPI_DISPATCH {
     PFN_D3DCompile                    D3DCompile;
     PFN_D3DCompile2                   D3DCompile2;
     PFN_D3DCompileFromFile            D3DCompileFromFile;
@@ -62,14 +62,14 @@ typedef struct D3DCOMPILERAPI_DISPATCH {
     PFN_D3DStripShader                D3DStripShader;
     PFN_D3DWriteBlobToFile            D3DWriteBlobToFile;
     HMODULE                           ModuleHandle_D3DCompiler;
-} D3DCOMPILERAPI_DISPATCH;
+} FXCCOMPILERAPI_DISPATCH;
 
 /* @summary Define a series of flags that can be bitwise OR'd together to control loader behavior.
  */
-typedef enum D3DCOMPILERAPI_LOADER_FLAGS {
-    D3DCOMPILERAPI_LOADER_FLAGS_NONE       = (0UL << 0),                       /* No special behavior is requested. */
-    D3DCOMPILERAPI_LOADER_FLAG_DEVELOPMENT = (1UL << 0),                       /* Attempt to resolve development-only entry points that are not available in submitted Windows Store applications. */
-} D3DCOMPILERAPI_LOADER_FLAGS;
+typedef enum FXCCOMPILERAPI_LOADER_FLAGS {
+    FXCCOMPILERAPI_LOADER_FLAGS_NONE       = (0UL << 0),                       /* No special behavior is requested. */
+    FXCCOMPILERAPI_LOADER_FLAG_DEVELOPMENT = (1UL << 0),                       /* Attempt to resolve development-only entry points that are not available in submitted Windows Store applications. */
+} FXCCOMPILERAPI_LOADER_FLAGS;
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,24 +78,24 @@ extern "C" {
 /* @summary Load d3dcompiler.dll into the process address space and resolve entry points.
  * Any missing entry points are set to stub functions, so none of the function pointers will be NULL.
  * @param dispatch The dispatch table to populate.
- * @param loader_flags One or more values of the D3DCOMPILERAPI_LOADER_FLAGS enumeration.
+ * @param loader_flags One or more values of the FXCCOMPILERAPI_LOADER_FLAGS enumeration.
  * @return Zero if the dispatch table is successfully populated.
  */
 GPUCC_API(int)
-D3DCompilerApiPopulateDispatch
+FxcCompilerApiPopulateDispatch
 (
-    struct D3DCOMPILERAPI_DISPATCH *dispatch, 
+    struct FXCCOMPILERAPI_DISPATCH *dispatch, 
     uint32_t                    loader_flags
 );
 
-/* @summary Determine whether the D3DCompiler API is supported on the host.
+/* @summary Determine whether the FxcCompiler API is supported on the host.
  * @param dispatch The dispatch table to query.
- * @return Non-zero if the D3DCompiler API is supported on the host, or zero otherwise.
+ * @return Non-zero if the FxcCompiler API is supported on the host, or zero otherwise.
  */
 GPUCC_API(int)
-D3DCompilerApiQuerySupport
+FxcCompilerApiQuerySupport
 (
-    struct D3DCOMPILERAPI_DISPATCH *dispatch
+    struct FXCCOMPILERAPI_DISPATCH *dispatch
 );
 
 /* @summary Free resources associated with a dispatch table.
@@ -103,14 +103,14 @@ D3DCompilerApiQuerySupport
  * @param dispatch The dispatch table to invalidate.
  */
 GPUCC_API(void)
-D3DCompilerApiInvalidateDispatch
+FxcCompilerApiInvalidateDispatch
 (
-    struct D3DCOMPILERAPI_DISPATCH *dispatch
+    struct FXCCOMPILERAPI_DISPATCH *dispatch
 );
 
 #ifdef __cplusplus
 }; /* extern "C" */
 #endif
 
-#endif /* __GPUCC_D3DCOMPILERAPI_WIN32_H__ */
+#endif /* __GPUCC_FXCCOMPILERAPI_WIN32_H__ */
 

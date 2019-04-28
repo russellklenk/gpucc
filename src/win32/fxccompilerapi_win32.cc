@@ -1,9 +1,9 @@
 /**
- * @summary d3dcompilerapi_win32.cc: Implement the D3DCompiler runtime loader 
+ * @summary fxccompilerapi_win32.cc: Implement the D3DCompiler runtime loader 
  * for Windows platforms.
  */
 #include <assert.h>
-#include "win32/d3dcompilerapi_win32.h"
+#include "win32/fxccompilerapi_win32.h"
 
 /* @summary Define a general signature for a dynamically loaded function. 
  * Code will have to case the function pointer to the specific type.
@@ -402,9 +402,9 @@ D3DWriteBlobToFile_Stub /* stripped API */
 }
 
 GPUCC_API(int)
-D3DCompilerApiPopulateDispatch
+FxcCompilerApiPopulateDispatch
 (
-    struct D3DCOMPILERAPI_DISPATCH *dispatch, 
+    struct FXCCOMPILERAPI_DISPATCH *dispatch, 
     uint32_t                    loader_flags
 )
 {
@@ -413,7 +413,7 @@ D3DCompilerApiPopulateDispatch
     assert(dispatch != NULL);
 
     d3dcompiler_dll  = LoadLibraryW(L"d3dcompiler_47.dll");
-    if (loader_flags & D3DCOMPILERAPI_LOADER_FLAG_DEVELOPMENT) {
+    if (loader_flags & FXCCOMPILERAPI_LOADER_FLAG_DEVELOPMENT) {
         RuntimeFunctionResolve(dispatch, d3dcompiler_dll, D3DCompileFromFile);
         RuntimeFunctionResolve(dispatch, d3dcompiler_dll, D3DCompressShaders);
         RuntimeFunctionResolve(dispatch, d3dcompiler_dll, D3DDecompressShaders);
@@ -445,18 +445,18 @@ D3DCompilerApiPopulateDispatch
 }
 
 GPUCC_API(int)
-D3DCompilerApiQuerySupport
+FxcCompilerApiQuerySupport
 (
-    struct D3DCOMPILERAPI_DISPATCH *dispatch
+    struct FXCCOMPILERAPI_DISPATCH *dispatch
 )
 {
     return dispatch->ModuleHandle_D3DCompiler != NULL;
 }
 
 GPUCC_API(void)
-D3DCompilerApiInvalidateDispatch
+FxcCompilerApiInvalidateDispatch
 (
-    struct D3DCOMPILERAPI_DISPATCH *dispatch
+    struct FXCCOMPILERAPI_DISPATCH *dispatch
 )
 {
     dispatch->D3DCompile                    = D3DCompile_Stub;

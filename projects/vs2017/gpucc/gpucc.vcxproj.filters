@@ -24,9 +24,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\win32\d3dcompilerapi_win32.h">
-      <Filter>Header Files\win32</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\gpucc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -51,11 +48,14 @@
     <ClInclude Include="..\..\..\include\win32\gpucc_internal_win32.h">
       <Filter>Header Files\win32</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\win32\dxccompilerapi_win32.h">
+      <Filter>Header Files\win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\win32\fxccompilerapi_win32.h">
+      <Filter>Header Files\win32</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\win32\d3dcompilerapi_win32.cc">
-      <Filter>Source Files\win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\win32\dllmain.cc">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
@@ -64,6 +64,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\gpucc.cc">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\win32\fxccompilerapi_win32.cc">
+      <Filter>Source Files\win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
