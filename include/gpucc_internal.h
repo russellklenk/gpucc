@@ -156,24 +156,52 @@ typedef struct GPUCC_PROGRAM_BYTECODE_BASE {
 extern "C" {
 #endif
 
+/* @summary Retrieve the global per-process data for the platform.
+ * @return A pointer to the platform-specific GPUCC_PROCESS_CONTEXT type.
+ */
 GPUCC_API(struct GPUCC_PROCESS_CONTEXT*)
 gpuccGetProcessContext
 (
     void
 );
 
+/* @summary Retrieve the global per-thread data for the calling thread.
+ * @return A pointer to the platform-specific thread-local data.
+ */
 GPUCC_API(struct GPUCC_THREAD_CONTEXT *)
 gpuccGetThreadContext
 (
     void
 );
 
+/* @summary Construct a GPUCC_RESULT value specifying only the GpuCC result code.
+ * The platform result code is set to zero, indicating that no platform error was observed.
+ * @param library_result One of the values of the GPUCC_RESULT_CODE enumeration.
+ * @return The GPUCC_RESULT structure.
+ */
+GPUCC_API(struct GPUCC_RESULT)
+gpuccMakeResult
+(
+    int32_t library_result
+);
+
+/* @summary Set the GPUCC_RESULT value for the calling thread.
+ * @param result The result of the most recent operation on the calling thread.
+ * @return The prior result value from the calling thread.
+ */
 GPUCC_API(struct GPUCC_RESULT)
 gpuccSetLastResult
 (
     struct GPUCC_RESULT result
 );
 
+/* @summary Copy the program entry point and source path strings into a program bytecode container.
+ * This function is called when a GPU program is being compiled.
+ * @param bytecode The destination bytecode container.
+ * @param entry_point A nul-terminated UTF-8 string specifying the program entry point function.
+ * @param source_path A nul-terminated UTF-8 string specifying the path of the source file containing the program entry point.
+ * @return A GPUCC_RESULT value.
+ */
 GPUCC_API(struct GPUCC_RESULT)
 gpuccSetProgramEntryPoint
 (
@@ -182,6 +210,11 @@ gpuccSetProgramEntryPoint
     char const                 *source_path
 );
 
+/* @summary Determine whether or not a bytecode container has previously been used as the target of a GPU program compilation.
+ * When a bytecode container has been used to store compilation results, it is considered to be "not empty" and cannot be reused.
+ * @param bytecode The bytecode container to check.
+ * @return Non-zero if the bytecode container has not been used, or zero if the bytecode container is already storing compilation results.
+ */
 GPUCC_API(int32_t)
 gpuccBytecodeContainerIsEmpty
 (
