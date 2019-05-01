@@ -2,6 +2,7 @@
 #include "gpucc.h"
 #include "gpucc_internal.h"
 #include "win32/gpucc_compiler_fxc_win32.h"
+#include "win32/gpucc_compiler_dxc_win32.h"
 
 GPUCC_API(struct GPUCC_RESULT)
 gpuccGetLastResult
@@ -116,8 +117,8 @@ gpuccCreateCompiler
             need_support  = GPUCC_COMPILER_SUPPORT_FXC;
             break;
         case GPUCC_BYTECODE_TYPE_SPIRV:
-            compiler_type = GPUCC_COMPILER_TYPE_SHADERC;
-            need_support  = GPUCC_COMPILER_SUPPORT_SHADERC;
+            compiler_type = GPUCC_COMPILER_TYPE_DXC;
+            need_support  = GPUCC_COMPILER_SUPPORT_DXC;
             break;
         case GPUCC_BYTECODE_TYPE_PTX:
             compiler_type = GPUCC_COMPILER_TYPE_NVRTC;
@@ -144,7 +145,7 @@ gpuccCreateCompiler
             c = nullptr;
             break;
         case GPUCC_COMPILER_TYPE_DXC:
-            c = nullptr;
+            c = gpuccCreateCompilerDxc(config);
             break;
         case GPUCC_COMPILER_TYPE_FXC:
             c = gpuccCreateCompilerFxc(config);
@@ -167,7 +168,7 @@ gpuccDeleteCompiler
 (
     struct GPUCC_PROGRAM_COMPILER *compiler
 )
-{
+{   /* TODO: need to invoke compiler cleanup callback first */
     free(compiler);
 }
 

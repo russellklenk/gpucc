@@ -33,9 +33,9 @@ int main
         config.DefineSymbols = symbols;
         config.DefineValues  = values;
         config.DefineCount   = 3;
-        config.BytecodeType  = GPUCC_BYTECODE_TYPE_DXBC;
+        config.BytecodeType  = GPUCC_BYTECODE_TYPE_SPIRV;
         config.TargetRuntime = GPUCC_TARGET_RUNTIME_DIRECT3D12;
-        config.TargetProfile = "ps_5_0";
+        config.TargetProfile = "ps_6_0";
         struct GPUCC_PROGRAM_COMPILER *c = gpuccCreateCompiler(&config);
         GPUCC_COMPILER_TYPE ct = (GPUCC_COMPILER_TYPE) gpuccQueryCompilerType(c);
         GPUCC_BYTECODE_TYPE bt = (GPUCC_BYTECODE_TYPE) gpuccQueryBytecodeType(c);
@@ -50,7 +50,7 @@ int main
             printf("\r\n");
         } else {
             printf("BUILD SUCCEEDED.\r\n");
-            FILE *fp = nullptr; fopen_s(&fp, "compiled.dxbc", "w");
+            FILE *fp = nullptr; fopen_s(&fp, "compiled.spv", "w");
             fwrite(gpuccQueryBytecodeBuffer(b), sizeof(uint8_t), gpuccQueryBytecodeSizeBytes(b), fp);
             fclose(fp);
         }

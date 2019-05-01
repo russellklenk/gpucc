@@ -34,6 +34,34 @@ gpuccDebugPrintf
     OutputDebugStringW(buffer);
 }
 
+GPUCC_API(int32_t)
+gpuccStringInfoUtf8ToUtf16
+(
+    GPUCC_STRING_INFO *o_info, 
+    char const           *str
+)
+{
+    int nbword = 0;
+    
+    assert(o_info != nullptr);
+
+    if (str != nullptr) {
+        if ((nbword = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, NULL, 0)) > 0) {
+            o_info->ByteCount = ((size_t) nbword) * sizeof(WCHAR);
+            o_info->CharCount = ((size_t) nbword);
+            return  0;
+        } else { /* Conversion failed. */
+            o_info->ByteCount = sizeof(WCHAR);
+            o_info->CharCount = 1;
+            return -1;
+        }
+    } else { /* Only output a nul. */
+        o_info->ByteCount = sizeof(WCHAR);
+        o_info->CharCount = 1;
+        return 0;
+    }
+}
+
 GPUCC_API(char*)
 gpuccPutStringUtf8
 (
@@ -68,6 +96,106 @@ gpuccPutStringUtf16
    *dst++ = 0; /* nul byte 0 */
    *dst++ = 0; /* nul byte 1 */
     return p;
+}
+
+GPUCC_API(WCHAR*)
+gpuccInternUtf8ToUtf16
+(
+    uint8_t      *&dst, 
+    uint8_t const *end, 
+    char const    *str
+)
+{
+    uint8_t *p = dst;
+    int     nb = 0;
+    int nbword = 0;
+
+    assert(dst != nullptr);
+    assert(end != nullptr);
+    assert(end != dst);
+    assert(end >  dst);
+    assert((end - dst) <= (ptrdiff_t) INT_MAX);
+    assert((end - dst) >= (ptrdiff_t) sizeof(WCHAR));
+
+    if ((end - dst) < (ptrdiff_t) sizeof(WCHAR)) {
+        /* This is a logic error in the program - it needs to be fixed. */
+        gpuccDebugPrintf(L"GpuCC: Insufficient buffer space in destination buffer.\n");
+        abort();
+    }
+
+    nb = (int)(end - dst);
+    if (str != nullptr) {
+        if ((nbword = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, (WCHAR*)p, nb)) <= 0) {
+            /* Conversion failed, or insufficient buffer space. */
+            DWORD      gle = GetLastError();
+            GPUCC_RESULT r = gpuccMakeResult_Win32(GPUCC_RESULT_CODE_PLATFORM_ERROR, gle);
+            gpuccDebugPrintf(L"GpuCC: Attempting to convert UTF-8 to UTF-16 and intern failed with Win32 error %08X.\n", gle);
+            gpuccSetLastResult(r);
+           *dst++ = 0; *dst++ = 0;
+        } else { /* Conversion was successful. */
+            dst  += ((size_t) nbword) * sizeof(WCHAR);
+        } return (WCHAR*) p;
+    } else { /* Output a nul. */
+        *dst++ = 0;
+        *dst++ = 0;
+    } return (WCHAR*) p;
+}
+
+GPUCC_API(WCHAR*)
+gpuccConvertUtf8ToUtf16
+(
+    char const *str
+)
+{
+    int       res = 0;
+    int    nbword = 0;
+    size_t nbytes = 0;
+    WCHAR    *buf = nullptr;
+
+    /* Determine the number of bytes of UTF-16 string data. */
+    if (str != nullptr) {
+        if ((nbword = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, NULL, 0)) <= 0) {
+            DWORD        p = GetLastError();
+            GPUCC_RESULT r = gpuccMakeResult_Win32(GPUCC_RESULT_CODE_PLATFORM_ERROR, p);
+            gpuccDebugPrintf(L"GpuCC: Attempting to convert UTF-8 to UTF-16 failed with error %08X.\n", p);
+            gpuccSetLastResult(r);
+            return nullptr;
+        } nbytes =(size_t) nbword * sizeof(WCHAR);
+    } else { /* Only output a nul. */
+        nbword = 1;
+        nbytes = sizeof(WCHAR);
+    }
+
+    /* Allocate a buffer to hold the UTF-16 string data. */
+    if ((buf = (WCHAR*) malloc(nbytes)) == nullptr) {
+        GPUCC_RESULT r = gpuccMakeResult_errno(GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY);
+        gpuccDebugPrintf(L"GpuCC: Failed to allocate %Iu bytes of memory for UTF-16 string buffer.\n", nbytes);
+        gpuccSetLastResult(r);
+        return nullptr;
+    }
+
+    /* Perform the conversion into the destination buffer. */
+    if (str != nullptr) {
+        if ((res = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, buf, nbword)) <= 0) {
+            DWORD        p = GetLastError();
+            GPUCC_RESULT r = gpuccMakeResult_Win32(GPUCC_RESULT_CODE_PLATFORM_ERROR, p);
+            gpuccDebugPrintf(L"GpuCC: Attempting to convert UTF-8 to UTF-16 failed with error %08X.\n", p);
+            gpuccSetLastResult(r);
+            free(buf);
+            return nullptr;
+        }
+    } else { /* Only output a nul. */
+        buf[0] = L'\0';
+    } return buf;
+}
+
+GPUCC_API(void)
+gpuccFreeStringBuffer
+(
+    void *str
+)
+{
+    free(str);
 }
 
 GPUCC_API(int32_t)

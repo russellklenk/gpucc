@@ -152,6 +152,14 @@ typedef struct GPUCC_PROGRAM_BYTECODE_BASE {
     uint8_t                       *BytecodeBuffer;                             /* The number of bytes of compiled bytecode. */
 } GPUCC_PROGRAM_BYTECODE_BASE;
 
+/* @summary Define a simple structure for returning information about a string 
+ * in some character encoding. The trailing nul is included in all counts.
+ */
+typedef struct GPUCC_STRING_INFO {
+    size_t                         ByteCount;                                  /* The number of bytes, including the trailing nul. */
+    size_t                         CharCount;                                  /* The number of characters, including the trailing nul. */
+} GPUCC_STRING_INFO;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

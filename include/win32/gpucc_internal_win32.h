@@ -78,8 +78,20 @@ gpuccDebugPrintf
     ...
 );
 
+/* @summary Calculate the number of bytes required to store a UTF-8 encoded string when converted to UTF-16.
+ * @param o_info Pointer to the GPUCC_STRING_INFO structure to populate. Required. The returned counts including the trailing nul.
+ * @param str Pointer to a nul-terminated UTF-8 encoded string to measure.
+ * @return Zero if the conversion can be performed, or non-zero if str contains one or more invalid codepoints.
+ */
+GPUCC_API(int32_t)
+gpuccStringInfoUtf8ToUtf16
+(
+    GPUCC_STRING_INFO *o_info, 
+    char const           *str
+);
+
 /* @summary Write a nul-terminated UTF-8 encoded string to a buffer.
- * @param dst A pointer to the address where the string should be written. On return, points to one-past the nul byte in the buffer.
+ * @param dst A pointer to the address where the string should be written. On return, points to one-past the nul codepoint in the buffer.
  * @param src A pointer to the start of the nul-terminated source string to copy.
  * @return A pointer to the start of the string in the destination buffer.
  */
@@ -91,7 +103,7 @@ gpuccPutStringUtf8
 );
 
 /* @summary Write a nul-terminated UTF-16 encoded string to a buffer.
- * @param dst A pointer to the address where the string should be written. On return, points to one-past the nul byte in the buffer.
+ * @param dst A pointer to the address where the string should be written. On return, points to one-past the nul codepoint in the buffer.
  * @param src A pointer to the start of the nul-terminated source string to copy.
  * @return A pointer to the start of the string in the destination buffer.
  */
@@ -100,6 +112,43 @@ gpuccPutStringUtf16
 (
     uint8_t    *&dst,
     WCHAR const *src
+);
+
+/* @summary Convert a nul-terminated UTF-8 string to UTF-16 and write the resulting UTF-16 to a buffer.
+ * If the conversion cannot be performed, this function calls gpuccSetLastResult and writes a nul to the buffer.
+ * If the buffer does not have enough space to store a nul, the calling process will abort.
+ * @param dst A pointer to the address where the string should be written. On return, points to one-past the nul codepoint in the buffer.
+ * @param end A pointer to one-past the last writable byte in the buffer. 
+ * @param str A pointer to the start of the nul-terminated UTF-8 string to convert.
+ * @return A pointer to the start of the string in the destination buffer.
+ */
+GPUCC_API(WCHAR*)
+gpuccInternUtf8ToUtf16
+(
+    uint8_t      *&dst, 
+    uint8_t const *end, 
+    char const    *str
+);
+
+/* @summary Convert a nul-terminated UTF-8 string to UTF-16.
+ * If the conversion cannot be performed, this function calls gpuccSetLastResult and returns NULL.
+ * @param str A nul-terminated UTF-8 string.
+ * @return A pointer to the newly allocated buffer containing the UTF-16 string data, or NULL.
+ * Free the returned buffer using the gpuccFreeStringBuffer function.
+ */
+GPUCC_API(WCHAR*)
+gpuccConvertUtf8ToUtf16
+(
+    char const *str
+);
+
+/* @summary Releases memory associated with a string buffer allocated by GpuCC.
+ * @param buf A pointer to the string buffer.
+ */
+GPUCC_API(void)
+gpuccFreeStringBuffer
+(
+    void *buf
 );
 
 /* @summary Parse a Direct3D shader model target profile of the format "ss_j_i", where ss indicates the shader stage, j indicates the shader model major version, and i indicates the shader model minor version.
@@ -142,9 +191,8 @@ gpuccMakeResult_Win32
     DWORD  platform_result
 );
 
-/* @summary Construct a GPUCC_RESULT value specifying both a GpuCC result code and a COM HRESULT.
+/* @summary Construct a GPUCC_RESULT value specifying a COM HRESULT.
  * This function is used when an error occurs after calling a COM API function.
- * @param library_result One of the values of the GPUCC_RESULT_CODE enumeration.
  * @param platform_result The value returned by the COM API call.
  * @return The GPUCC_RESULT structure.
  */
