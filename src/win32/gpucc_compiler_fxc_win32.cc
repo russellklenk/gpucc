@@ -79,10 +79,9 @@ gpuccCompileBytecodeFxc
     ID3DBlob                       *code = nullptr;
     ID3DBlob                        *log = nullptr;
     HRESULT                          res = S_OK;
-    DWORD                         flags1 = D3DCOMPILE_DEBUG | D3DCOMPILE_WARNINGS_ARE_ERRORS;
+    DWORD                         flags1 = compiler_->FxcCompileFlags;
     DWORD                         flags2 = 0;
 
-    /* TODO: Need some way to specify flags1 */
     res = dispatch->D3DCompile
     (
         source_code, 
@@ -120,6 +119,15 @@ gpuccCompileBytecodeFxc
     return result;
 }
 
+static void
+gpuccCleanupCompilerFxc
+(
+    struct GPUCC_PROGRAM_COMPILER *compiler
+)
+{
+    UNREFERENCED_PARAMETER(compiler);
+}
+
 GPUCC_API(struct GPUCC_PROGRAM_COMPILER*)
 gpuccCreateCompilerFxc
 (
@@ -135,6 +143,7 @@ gpuccCreateCompilerFxc
     int                    version_mj = 0;
     int                    version_mi = 0;
     char               shader_type[3] ={0, 0, 0};
+    DWORD                      flags1 = 0;
 
     /* Validate the target profile. */
     if (config->TargetProfile == nullptr) {
@@ -173,6 +182,31 @@ gpuccCreateCompilerFxc
         gpuccDebugPrintf(L"GpuCC: Invalid target profile \"%S\". Shader model 6+ require the newer dxc compiler and DXIL bytecode format.\n", config->TargetProfile);
         gpuccSetLastResult(r);
         return nullptr;
+    }
+
+    /* Determine the D3DCOMPILE flags. */
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_DEBUG) {
+        flags1 |= D3DCOMPILE_DEBUG;
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_DISABLE_OPTIMIZATIONS) {
+        flags1 |= D3DCOMPILE_SKIP_OPTIMIZATION;
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_WARNINGS_AS_ERRORS) {
+        flags1 |= D3DCOMPILE_WARNINGS_ARE_ERRORS;
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ROW_MAJOR_MATRICES) {
+        flags1 |= D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
+    } else {
+        flags1 |= D3DCOMPILE_PACK_MATRIX_COLUMN_MAJOR;
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ENABLE_16BIT_TYPES) {
+        gpuccDebugPrintf(L"GpuCC: Shader model targets pre-6.2 do not support native 16-bit types. Native support will be disabled.\n");
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_AVOID_FLOW_CONTROL) {
+        flags1 |= D3DCOMPILE_AVOID_FLOW_CONTROL;
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ENABLE_IEEE_STRICT) {
+        flags1 |= D3DCOMPILE_IEEE_STRICTNESS;
     }
 
     /* Determine the amount of memory required. */
@@ -216,10 +250,12 @@ gpuccCreateCompilerFxc
     fxc->CommonFields.CreateBytecode      = gpuccCreateProgramBytecodeFxc;
     fxc->CommonFields.DeleteBytecode      = gpuccDeleteProgramBytecodeFxc;
     fxc->CommonFields.CompileBytecode     = gpuccCompileBytecodeFxc;
+    fxc->CommonFields.CleanupCompiler     = gpuccCleanupCompilerFxc;
     fxc->DispatchTable                    =&pctx->FxcCompiler_Dispatch;
     fxc->DefineArray                      = macros;
     fxc->DefineCount                      = config->DefineCount;
     fxc->TargetRuntime                    = config->TargetRuntime;
+    fxc->FxcCompileFlags                  = flags1;
     return (struct GPUCC_PROGRAM_COMPILER*) fxc;
 }
 

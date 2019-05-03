@@ -168,8 +168,11 @@ gpuccDeleteCompiler
 (
     struct GPUCC_PROGRAM_COMPILER *compiler
 )
-{   /* TODO: need to invoke compiler cleanup callback first */
-    free(compiler);
+{
+    if (compiler) {
+        GPUCC_PROGRAM_COMPILER_BASE *compiler_ =(GPUCC_PROGRAM_COMPILER_BASE*) compiler;
+        compiler_->CleanupCompiler(compiler);
+    } free(compiler);
 }
 
 GPUCC_API(struct GPUCC_PROGRAM_BYTECODE*)

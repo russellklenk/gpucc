@@ -36,6 +36,7 @@ int main
         config.BytecodeType  = GPUCC_BYTECODE_TYPE_SPIRV;
         config.TargetRuntime = GPUCC_TARGET_RUNTIME_VULKAN_1_1;
         config.TargetProfile = "ps_6_0";
+        config.CompilerFlags = GPUCC_COMPILER_FLAG_DEBUG | GPUCC_COMPILER_FLAG_DISABLE_OPTIMIZATIONS;
         struct GPUCC_PROGRAM_COMPILER *c = gpuccCreateCompiler(&config);
         GPUCC_COMPILER_TYPE ct = (GPUCC_COMPILER_TYPE) gpuccQueryCompilerType(c);
         GPUCC_BYTECODE_TYPE bt = (GPUCC_BYTECODE_TYPE) gpuccQueryBytecodeType(c);

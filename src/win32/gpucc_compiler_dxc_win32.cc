@@ -248,6 +248,26 @@ cleanup_and_fail:
     } return gpuccMakeResult(GPUCC_RESULT_CODE_COMPILE_FAILED);
 }
 
+static void
+gpuccCleanupCompilerDxc
+(
+    struct GPUCC_PROGRAM_COMPILER *compiler
+)
+{
+    GPUCC_COMPILER_DXC_WIN32 *compiler_ = gpuccCompilerDxc_(compiler);
+
+    if (compiler_->DxcCompiler) {
+        IDxcCompiler *cc = compiler_->DxcCompiler;
+        compiler_->DxcCompiler = nullptr;
+        cc->Release();
+    }
+    if (compiler_->DxcLibrary) {
+        IDxcLibrary *lib = compiler_->DxcLibrary;
+        compiler_->DxcLibrary = nullptr;
+        lib->Release();
+    }
+}
+
 GPUCC_API(struct GPUCC_PROGRAM_COMPILER*)
 gpuccCreateCompilerDxc
 (
@@ -365,7 +385,35 @@ gpuccCreateCompilerDxc
     dxc->ClArguments   =(WCHAR const**) ptr;
     dxc->ArgumentCount = 0;
     /* Common arguments */
-    gpuccDxcStoreArg(dxc, DxcArg_WarningsAsErrors);
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_DEBUG) {
+        gpuccDxcStoreArg(dxc, DxcArg_EnableDebugInfo);
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_DISABLE_OPTIMIZATIONS) {
+        gpuccDxcStoreArg(dxc, DxcArg_DisableOptimizations);
+    } else {
+        gpuccDxcStoreArg(dxc, DxcArg_OptimizerLevel4);
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_WARNINGS_AS_ERRORS) {
+        gpuccDxcStoreArg(dxc, DxcArg_WarningsAsErrors);
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ROW_MAJOR_MATRICES) {
+        gpuccDxcStoreArg(dxc, DxcArg_PackRowMajor);
+    } else {
+        gpuccDxcStoreArg(dxc, DxcArg_PackColumnMajor);
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ENABLE_16BIT_TYPES) {
+        if (version_mj <= 6 && version_mi < 2) {
+            gpuccDebugPrintf(L"GpuCC: Native 16-bit types require shader model 6.2 or later. Support will not be enabled.\n");
+        } else {
+            gpuccDxcStoreArg(dxc, DxcArg_Enable16BitTypes);
+        }
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_AVOID_FLOW_CONTROL) {
+        gpuccDxcStoreArg(dxc, DxcArg_AvoidFlowControl);
+    }
+    if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ENABLE_IEEE_STRICT) {
+        gpuccDxcStoreArg(dxc, DxcArg_ForceIEEEStrictness);
+    }
     if (config->BytecodeType == GPUCC_BYTECODE_TYPE_DXIL) { /* DXIL-specific arguments */
         /* ... */
     }
@@ -414,6 +462,7 @@ gpuccCreateCompilerDxc
     dxc->CommonFields.CreateBytecode      = gpuccCreateProgramBytecodeDxc;
     dxc->CommonFields.DeleteBytecode      = gpuccDeleteProgramBytecodeDxc;
     dxc->CommonFields.CompileBytecode     = gpuccCompileBytecodeDxc;
+    dxc->CommonFields.CleanupCompiler     = gpuccCleanupCompilerDxc;
     dxc->DispatchTable                    =&pctx->DxcCompiler_Dispatch;
     dxc->DxcLibrary                       = lib;
     dxc->DxcCompiler                      = dxcc;
