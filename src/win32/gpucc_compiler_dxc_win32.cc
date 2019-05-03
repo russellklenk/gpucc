@@ -371,9 +371,21 @@ gpuccCreateCompilerDxc
     }
     if (config->BytecodeType == GPUCC_BYTECODE_TYPE_SPIRV) { /* Vulkan/OpenGL SPIRV-specific arguments */
         gpuccDxcStoreArg(dxc, DxcArg_GenerateSPIRV);
-        gpuccDxcStoreArg(dxc, DxcArg_TargetVulkan1_0);
         gpuccDxcStoreArg(dxc, DxcArg_VulkanUseGlLayout);
-        gpuccDxcStoreArg(dxc, DxcArg_VulkanInvertY);
+    }
+    if (config->TargetRuntime == GPUCC_TARGET_RUNTIME_VULKAN_1_0) {
+        gpuccDxcStoreArg(dxc, DxcArg_TargetVulkan1_0);
+    }
+    if (config->TargetRuntime == GPUCC_TARGET_RUNTIME_VULKAN_1_1) {
+        gpuccDxcStoreArg(dxc, DxcArg_TargetVulkan1_1);
+    }
+    if (config->TargetRuntime == GPUCC_TARGET_RUNTIME_VULKAN_1_0 || 
+        config->TargetRuntime == GPUCC_TARGET_RUNTIME_VULKAN_1_1) {
+        if (_stricmp(shader_type, "vs") == 0 || 
+            _stricmp(shader_type, "gs") == 0 || 
+            _stricmp(shader_type, "ds") == 0) {
+            gpuccDxcStoreArg(dxc, DxcArg_VulkanInvertY);
+        }
     }
 
     /* Finally, initialize an IDxcLibrary instance for creating blobs, etc. 

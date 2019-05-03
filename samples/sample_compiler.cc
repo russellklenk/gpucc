@@ -34,7 +34,7 @@ int main
         config.DefineValues  = values;
         config.DefineCount   = 3;
         config.BytecodeType  = GPUCC_BYTECODE_TYPE_SPIRV;
-        config.TargetRuntime = GPUCC_TARGET_RUNTIME_DIRECT3D12;
+        config.TargetRuntime = GPUCC_TARGET_RUNTIME_VULKAN_1_1;
         config.TargetProfile = "ps_6_0";
         struct GPUCC_PROGRAM_COMPILER *c = gpuccCreateCompiler(&config);
         GPUCC_COMPILER_TYPE ct = (GPUCC_COMPILER_TYPE) gpuccQueryCompilerType(c);
