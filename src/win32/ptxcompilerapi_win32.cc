@@ -204,12 +204,14 @@ PtxCompilerApiPopulateDispatch
     uint32_t                    loader_flags
 )
 {
-    HMODULE nvrtc_dll = NULL;
+    HMODULE nvrtc_dll    = NULL;
+    HMODULE builtins_dll = NULL;
 
     assert(dispatch  != NULL);
     UNREFERENCED_PARAMETER(loader_flags);
 
-    nvrtc_dll = LoadLibraryW(L"nvrtc64_101_0.dll");
+    nvrtc_dll    = LoadLibraryW(L"nvrtc64_101_0.dll");
+    builtins_dll = LoadLibraryW(L"nvrtc-builtins64_101.dll");
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcGetErrorString);
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcVersion);
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcCreateProgram);
@@ -254,6 +256,10 @@ PtxCompilerApiInvalidateDispatch
     if (dispatch->ModuleHandle_nvrtc64) {
         FreeLibrary(dispatch->ModuleHandle_nvrtc64);
         dispatch->ModuleHandle_nvrtc64 = NULL;
+    }
+    if (dispatch->ModuleHandle_builtins) {
+        FreeLibrary(dispatch->ModuleHandle_builtins);
+        dispatch->ModuleHandle_builtins = NULL;
     }
 }
 

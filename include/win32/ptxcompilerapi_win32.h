@@ -47,6 +47,7 @@ typedef struct PTXCOMPILERAPI_DISPATCH {
     PFN_nvrtcAddNameExpression nvrtcAddNameExpression;
     PFN_nvrtcGetLoweredName    nvrtcGetLoweredName;
     HMODULE                    ModuleHandle_nvrtc64;
+    HMODULE                    ModuleHandle_builtins;
 } PTXCOMPILERAPI_DISPATCH;
 
 /* @summary Define a series of flags that can be bitwise OR'd together to control loader behavior.
