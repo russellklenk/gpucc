@@ -57,6 +57,38 @@ int main
         }
         gpuccDeleteBytecodeContainer(b);
         gpuccDeleteCompiler(c);
+
+        GPUCC_PROGRAM_COMPILER_INIT ptxcfg;
+        ptxcfg.DefineSymbols = symbols;
+        ptxcfg.DefineValues  = values;
+        ptxcfg.DefineCount   = 3;
+        ptxcfg.BytecodeType  = GPUCC_BYTECODE_TYPE_PTX;
+        ptxcfg.TargetRuntime = GPUCC_TARGET_RUNTIME_CUDA;
+        ptxcfg.TargetProfile = "compute_62";
+        ptxcfg.CompilerFlags = GPUCC_COMPILER_FLAG_DEBUG | GPUCC_COMPILER_FLAG_DISABLE_OPTIMIZATIONS;
+        struct GPUCC_PROGRAM_COMPILER *cudac = gpuccCreateCompiler(&ptxcfg);
+        struct GPUCC_PROGRAM_BYTECODE *ptxbc = gpuccCreateBytecodeContainer(cudac);
+        char const *cuda_source = 
+            "extern \"C\" __global__\n"
+            "void saxpy(float a, float *x, float *y, float *out, size_t n) {\n"
+            "    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;\n"
+            "    if (tid < n) {\n"
+            "        out[tid] = a * x[tid] + y[tid];\n"
+            "    }\n"
+            "}\n";
+        GPUCC_RESULT cudac_result = gpuccCompileProgramBytecode(ptxbc, cuda_source, strlen(cuda_source), "saxpy.cu", "saxpy");
+        if (gpuccFailure(cudac_result)) {
+            printf("BUILD FAILED:\r\n");
+            printf(gpuccQueryBytecodeLogBuffer(ptxbc));
+            printf("\r\n");
+        } else {
+            printf("BUILD SUCCEEDED.\r\n");
+            FILE *fp = nullptr; fopen_s(&fp, "compiled.ptx", "w");
+            fwrite(gpuccQueryBytecodeBuffer(ptxbc), sizeof(uint8_t), gpuccQueryBytecodeSizeBytes(ptxbc), fp);
+            fclose(fp);
+        }
+        gpuccDeleteBytecodeContainer(ptxbc);
+        gpuccDeleteCompiler(cudac);
     }
     (void) argc;
     (void) argv;

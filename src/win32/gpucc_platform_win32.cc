@@ -3,6 +3,7 @@
 #include "gpucc_internal.h"
 #include "win32/gpucc_compiler_fxc_win32.h"
 #include "win32/gpucc_compiler_dxc_win32.h"
+#include "win32/gpucc_compiler_ptx_win32.h"
 
 GPUCC_API(struct GPUCC_RESULT)
 gpuccGetLastResult
@@ -154,7 +155,7 @@ gpuccCreateCompiler
             c = nullptr;
             break;
         case GPUCC_COMPILER_TYPE_NVRTC:
-            c = nullptr;
+            c = gpuccCreateCompilerPtx(config);
             break;
         default:
             c = nullptr;

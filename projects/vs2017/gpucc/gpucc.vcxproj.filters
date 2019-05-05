@@ -63,6 +63,9 @@
     <ClInclude Include="..\..\..\include\win32\gpucc_compiler_dxc_win32.h">
       <Filter>Header Files\win32</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\win32\gpucc_compiler_ptx_win32.h">
+      <Filter>Header Files\win32</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\win32\dllmain.cc">
@@ -90,6 +93,9 @@
       <Filter>Source Files\win32</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\win32\gpucc_compiler_dxc_win32.cc">
+      <Filter>Source Files\win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\win32\gpucc_compiler_ptx_win32.cc">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
   </ItemGroup>

@@ -22,6 +22,7 @@
     <ClInclude Include="..\..\..\include\win32\fxccompilerapi_win32.h" />
     <ClInclude Include="..\..\..\include\win32\gpucc_compiler_dxc_win32.h" />
     <ClInclude Include="..\..\..\include\win32\gpucc_compiler_fxc_win32.h" />
+    <ClInclude Include="..\..\..\include\win32\gpucc_compiler_ptx_win32.h" />
     <ClInclude Include="..\..\..\include\win32\gpucc_internal_win32.h" />
     <ClInclude Include="..\..\..\include\win32\ptxcompilerapi_win32.h" />
   </ItemGroup>
@@ -32,6 +33,7 @@
     <ClCompile Include="..\..\..\src\win32\fxccompilerapi_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\gpucc_compiler_dxc_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\gpucc_compiler_fxc_win32.cc" />
+    <ClCompile Include="..\..\..\src\win32\gpucc_compiler_ptx_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\gpucc_internal_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\gpucc_platform_win32.cc" />
     <ClCompile Include="..\..\..\src\win32\ptxcompilerapi_win32.cc" />
