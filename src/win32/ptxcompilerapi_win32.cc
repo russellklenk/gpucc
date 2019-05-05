@@ -68,7 +68,7 @@ nvrtcGetErrorString_Stub
 }
 
 static nvrtcResult
-nvrtcGetVersion_Stub
+nvrtcVersion_Stub
 (
     int *major, 
     int *minor
@@ -211,7 +211,7 @@ PtxCompilerApiPopulateDispatch
 
     nvrtc_dll = LoadLibraryW(L"nvrtc64_101_0.dll");
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcGetErrorString);
-    RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcGetVersion);
+    RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcVersion);
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcCreateProgram);
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcDestroyProgram);
     RuntimeFunctionResolve(dispatch, nvrtc_dll, nvrtcCompileProgram);
@@ -241,7 +241,7 @@ PtxCompilerApiInvalidateDispatch
 )
 {
     dispatch->nvrtcGetErrorString    = nvrtcGetErrorString_Stub;
-    dispatch->nvrtcGetVersion        = nvrtcGetVersion_Stub;
+    dispatch->nvrtcVersion           = nvrtcVersion_Stub;
     dispatch->nvrtcCreateProgram     = nvrtcCreateProgram_Stub;
     dispatch->nvrtcDestroyProgram    = nvrtcDestroyProgram_Stub;
     dispatch->nvrtcCompileProgram    = nvrtcCompileProgram_Stub;

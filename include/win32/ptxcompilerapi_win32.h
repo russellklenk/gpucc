@@ -21,7 +21,7 @@
  * Function pointer types.
  */
 typedef const char* (*PFN_nvrtcGetErrorString   )(nvrtcResult);
-typedef nvrtcResult (*PFN_nvrtcGetVersion       )(int*, int*);
+typedef nvrtcResult (*PFN_nvrtcVersion          )(int*, int*);
 typedef nvrtcResult (*PFN_nvrtcCreateProgram    )(struct _nvrtcProgram**, const char*, const char*, int, const char * const *, const char * const *);
 typedef nvrtcResult (*PFN_nvrtcDestroyProgram   )(struct _nvrtcProgram**);
 typedef nvrtcResult (*PFN_nvrtcCompileProgram   )(struct _nvrtcProgram*, int, const char * const *);
@@ -36,7 +36,7 @@ typedef nvrtcResult (*PFN_nvrtcGetLoweredName   )(struct _nvrtcProgram*, const c
  */
 typedef struct PTXCOMPILERAPI_DISPATCH {
     PFN_nvrtcGetErrorString    nvrtcGetErrorString;
-    PFN_nvrtcGetVersion        nvrtcGetVersion;
+    PFN_nvrtcVersion           nvrtcVersion;
     PFN_nvrtcCreateProgram     nvrtcCreateProgram;
     PFN_nvrtcDestroyProgram    nvrtcDestroyProgram;
     PFN_nvrtcCompileProgram    nvrtcCompileProgram;
