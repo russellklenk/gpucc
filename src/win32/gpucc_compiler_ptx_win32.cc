@@ -4,11 +4,21 @@
 #include "gpucc_internal.h"
 #include "win32/gpucc_compiler_ptx_win32.h"
 
-static char const *PtxArg_GpuArchitecture  = "-arch";
-static char const *PtxArg_EnableDebugInfo  = "-G";
-static char const *PtxArg_GenerateLineInfo = "-lineinfo";
-static char const *PtxArg_SuppressWarnings = "-w";
+static char const *PtxArg_GpuArchitecture   = "--gpu-architecture";
+static char const *PtxArg_EnableDebugInfo   = "--device-debug";
+static char const *PtxArg_GenerateLineInfo  = "--generate-line-info";
+static char const *PtxArg_SuppressWarnings  = "--disable-warnings";
+static char const *PtxArg_EnableFastMath    = "--use-fast-math";
+static char const *PtxArg_DisableFTZ        = "--ftz=false";
+static char const *PtxArg_PrecisionSqrt     = "--prec-sqrt=true";
+static char const *PtxArg_PrecisionDivision = "--prec-div=true";
+static char const *PtxArg_DisableFMAD       = "--fmad=false";
 
+/* @summary Create a GPUCC_RESULT value based on an nvrtcResult.
+ * If the result code is NVRTC_SUCCESS, the LibraryResult field is GPUCC_RESULT_CODE_SUCCESS; otherwise, it is GPUCC_RESULT_CODE_PLATFORM_ERROR.
+ * @param nvrtc_result A value of the nvrtcResult enumeration.
+ * @return The GpuCC result value.
+ */
 static struct GPUCC_RESULT
 gpuccMakeResult_nvrtc
 (
@@ -120,6 +130,7 @@ gpuccCompileBytecodePtx
     GPUCC_BYTECODE_PTX_WIN32 *container_ = gpuccBytecodePtx_(container);
     PTXCOMPILERAPI_DISPATCH    *dispatch = compiler_->DispatchTable;
     GPUCC_RESULT                  result = gpuccMakeResult(GPUCC_RESULT_CODE_SUCCESS);
+    GPUCC_RESULT                  failed = gpuccMakeResult(GPUCC_RESULT_CODE_COMPILE_FAILED);
     uint8_t                        *code = nullptr;
     char                            *log = nullptr;
     size_t                     code_size = 0;
@@ -133,26 +144,21 @@ gpuccCompileBytecodePtx
     if ((res = dispatch->nvrtcCreateProgram(&program, source_code, source_path, 0, NULL, NULL)) != NVRTC_SUCCESS) {
         GPUCC_RESULT r = gpuccMakeResult_nvrtc(res);
         gpuccDebugPrintf(L"GpuCC: nvrtcCreateProgram failed with %s.\n", dispatch->nvrtcGetErrorString(res));
+        failed.PlatformResult = res;
         gpuccSetLastResult(r);
-        goto cleanup_and_fail;
+        return failed;
     }
     if ((res = dispatch->nvrtcCompileProgram(program, compiler_->ArgumentCount, compiler_->ClArguments)) != NVRTC_SUCCESS) {
         GPUCC_RESULT r = gpuccMakeResult_nvrtc(res);
         gpuccDebugPrintf(L"GpuCC: nvrtcCompileProgram failed with %s.\n", dispatch->nvrtcGetErrorString(res));
+        failed.PlatformResult = res;
         gpuccSetLastResult(r);
-        goto cleanup_and_fail;
     }
     if ((res = dispatch->nvrtcGetPTXSize(program, &code_size)) != NVRTC_SUCCESS) {
-        GPUCC_RESULT r = gpuccMakeResult_nvrtc(res);
         gpuccDebugPrintf(L"GpuCC: nvrtcGetPTXSize failed with %s.\n", dispatch->nvrtcGetErrorString(res));
-        gpuccSetLastResult(r);
-        goto cleanup_and_fail;
     }
     if ((res = dispatch->nvrtcGetProgramLogSize(program, &log_size)) != NVRTC_SUCCESS) {
-        GPUCC_RESULT r = gpuccMakeResult_nvrtc(res);
         gpuccDebugPrintf(L"GpuCC: nvrtcGetProgramLogSize failed with %s.\n", dispatch->nvrtcGetErrorString(res));
-        gpuccSetLastResult(r);
-        goto cleanup_and_fail;
     }
 
     /* Allocate buffers to hold the code and/or program log.
@@ -163,14 +169,17 @@ gpuccCompileBytecodePtx
     if (log_size  != 0 && ((log  = (char   *) malloc( log_size))) == nullptr) {
         GPUCC_RESULT r = gpuccMakeResult_errno(GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY);
         gpuccDebugPrintf(L"GpuCC: Failed to allocate %Iu bytes for program log buffer.\n", log_size);
+        failed.PlatformResult = errno;
         gpuccSetLastResult(r);
-        goto cleanup_and_fail;
+        return failed;
     }
     if (code_size != 0 && ((code = (uint8_t*) malloc(code_size))) == nullptr) {
         GPUCC_RESULT r = gpuccMakeResult_errno(GPUCC_RESULT_CODE_OUT_OF_HOST_MEMORY);
         gpuccDebugPrintf(L"GpuCC: Failed to allocate %Iu bytes for PTX bytecode buffer.\n", code_size);
+        failed.PlatformResult = errno;
         gpuccSetLastResult(r);
-        goto cleanup_and_fail;
+        free(log);
+        return failed;
     }
     if (code_size != 0 && ((res  = dispatch->nvrtcGetPTX(program, (char*)code))) != NVRTC_SUCCESS) {
         GPUCC_RESULT r = gpuccMakeResult_nvrtc(res);
@@ -237,6 +246,7 @@ gpuccCreateCompilerPtx
     char                    **defines = nullptr;
     char                     **clargs = nullptr;
     size_t                     nbneed = 0;
+    char                  argbuf[256] = {};
 
     /* Validate the target profile. */
     if (config->TargetProfile == nullptr) {
@@ -289,17 +299,16 @@ gpuccCreateCompilerPtx
     /* Copy string data into the memory block. */
     ptx->GpuArchitecture   = gpuccPutStringUtf8(ptr, config->TargetProfile);
     for (uint32_t i = 0, n = config->DefineCount; i < n; ++i) {
-        size_t vlen = 0;
+        int has_val = 0;
 
-        defines[i]  =(char*) ptr;
-        if (config->DefineValues[i] != nullptr) {
-            vlen = strlen(config->DefineValues[i]);
+        if (config->DefineValues[i] != nullptr && config->DefineValues[i][0] != 0) {
+            has_val = 1;
         }
-        if (vlen > 0) {
-            ptr += _snprintf_s((char*) ptr, nbneed, _TRUNCATE, "-D %s=%s", config->DefineSymbols[i], config->DefineValues[i]) + 1;
+        if (has_val) {
+            _snprintf_s((char*) argbuf, sizeof(argbuf), sizeof(argbuf), "-D %s=%s", config->DefineSymbols[i], config->DefineValues[i]);
         } else {
-            ptr += _snprintf_s((char*) ptr, nbneed, _TRUNCATE, "-D %s"   , config->DefineSymbols[i]) + 1;
-        }
+            _snprintf_s((char*) argbuf, sizeof(argbuf), sizeof(argbuf), "-D %s", config->DefineSymbols[i]);
+        } defines[i]  = gpuccPutStringUtf8(ptr, argbuf);
     }
     
     /* Initialize the compiler arguments array. */
@@ -314,25 +323,33 @@ gpuccCreateCompilerPtx
         gpuccPtxStoreArg(ptx, PtxArg_GenerateLineInfo);
     }
     if (config->CompilerFlags & GPUCC_COMPILER_FLAG_DISABLE_OPTIMIZATIONS) {
+        gpuccPtxStoreArg(ptx, PtxArg_DisableFTZ);
+        gpuccPtxStoreArg(ptx, PtxArg_PrecisionSqrt);
+        gpuccPtxStoreArg(ptx, PtxArg_PrecisionDivision);
+        gpuccPtxStoreArg(ptx, PtxArg_DisableFMAD);
+    } else {
+        gpuccPtxStoreArg(ptx, PtxArg_EnableFastMath);
     }
     if (config->CompilerFlags & GPUCC_COMPILER_FLAG_WARNINGS_AS_ERRORS) {
+        gpuccDebugPrintf(L"GpuCC: NVRTC does not support treating warnings as errors.\n");
     }
     if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ROW_MAJOR_MATRICES) {
+        gpuccDebugPrintf(L"GpuCC: NVRTC does not support specifying matrix storage order.\n");
     }
     if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ENABLE_16BIT_TYPES) {
         gpuccDebugPrintf(L"GpuCC: Shader model targets pre-6.2 do not support native 16-bit types. Native support will be disabled.\n");
     }
     if (config->CompilerFlags & GPUCC_COMPILER_FLAG_AVOID_FLOW_CONTROL) {
+        gpuccDebugPrintf(L"GpuCC: NVRTC does not support flow-control avoidance.\n");
     }
     if (config->CompilerFlags & GPUCC_COMPILER_FLAG_ENABLE_IEEE_STRICT) {
+        gpuccPtxStoreArg(ptx, PtxArg_DisableFTZ);
+        gpuccPtxStoreArg(ptx, PtxArg_PrecisionSqrt);
+        gpuccPtxStoreArg(ptx, PtxArg_PrecisionDivision);
     }
     for (uint32_t i = 0, n = config->DefineCount; i < n; ++i) {
         gpuccPtxStoreArg(ptx, defines[i]);
     }
-
-    int mj, mi;
-    pctx->PtxCompiler_Dispatch.nvrtcVersion(&mj, &mi);
-    gpuccDebugPrintf(L"GpuCC: NVRTC is version %d.%d.\n", mj, mi);
 
     /* Finish initializing the compiler structure. */
     ptx->CommonFields.CompilerType        = GPUCC_COMPILER_TYPE_NVRTC;
