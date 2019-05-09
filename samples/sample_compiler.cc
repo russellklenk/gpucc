@@ -64,7 +64,7 @@ int main
         ptxcfg.DefineCount   = 3;
         ptxcfg.BytecodeType  = GPUCC_BYTECODE_TYPE_PTX;
         ptxcfg.TargetRuntime = GPUCC_TARGET_RUNTIME_CUDA;
-        ptxcfg.TargetProfile = "compute_62";
+        ptxcfg.TargetProfile = "compute_30";
         ptxcfg.CompilerFlags = GPUCC_COMPILER_FLAG_DEBUG | GPUCC_COMPILER_FLAG_DISABLE_OPTIMIZATIONS;
         struct GPUCC_PROGRAM_COMPILER *cudac = gpuccCreateCompiler(&ptxcfg);
         struct GPUCC_PROGRAM_BYTECODE *ptxbc = gpuccCreateBytecodeContainer(cudac);
